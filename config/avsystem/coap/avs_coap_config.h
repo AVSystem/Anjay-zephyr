@@ -74,7 +74,9 @@
 /**
  * Enable support for observations (RFC 7641).
  */
-#define WITH_AVS_COAP_OBSERVE
+#ifdef CONFIG_ANJAY_WITH_OBSERVE
+#    define WITH_AVS_COAP_OBSERVE
+#endif // CONFIG_ANJAY_WITH_OBSERVE
 
 /**
  * Enable support for observation persistence (<c>avs_coap_observe_persist()</c>
@@ -114,7 +116,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef WITH_AVS_COAP_OSCORE */
+#ifdef CONFIG_ANJAY_WITH_COAP_OSCORE
+#    define WITH_AVS_COAP_OSCORE
+#endif // CONFIG_ANJAY_WITH_COAP_OSCORE
 
 /**
  * Use OSCORE version from draft-ietf-core-object-security-08 instead of the

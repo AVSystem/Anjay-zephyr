@@ -28,6 +28,166 @@ config ANJAY_COMPAT_NET
 config ANJAY_COMPAT_TIME
     bool "Enable Time compatibility implementation"
 
+config ANJAY_WITH_LOGS
+    bool "Enable logging in Anjay."
+    default y
+    help
+      If this flag is disabled, no logging is compiled into the binary at all.
+
+config ANJAY_WITH_TRACE_LOGS
+    bool "Enable TRACE-level logs in Anjay."
+    default y
+    depends on ANJAY_WITH_LOGS
+
+config ANJAY_WITH_ACCESS_CONTROL
+    bool "Enable core support for Access Control mechanisms."
+    default y
+    help
+      Requires separate implementation of the Access Control object itself.
+      Either the implementation available as part of
+      ANJAY_WITH_MODULE_ACCESS_CONTROL, or a custom application-provided one
+      may be used.
+
+config ANJAY_WITH_DOWNLOADER
+    bool "Enable support for the anjay_download() API."
+    default y
+
+config ANJAY_WITH_COAP_DOWNLOAD
+    bool "Enable support for CoAP(S) downloads."
+    default y
+    depends on ANJAY_WITH_DOWNLOADER
+
+config ANJAY_WITH_HTTP_DOWNLOAD
+    bool "Enable support for HTTP(S) downloads."
+    default n
+    depends on ANJAY_WITH_DOWNLOADER
+
+config ANJAY_WITH_BOOTSTRAP
+    bool "Enable support for the LwM2M Bootstrap Interface."
+    default y
+
+config ANJAY_WITH_DISCOVER
+    bool "Enable support for the LwM2M Discover operation."
+    default y
+
+config ANJAY_WITH_OBSERVE
+    bool "Enable support for the LwM2M Information Reporting interface."
+    default y
+    help
+      Information Reporting interface includes Observe and Notify operations
+
+config ANJAY_WITH_NET_STATS
+    bool "Enable support for measuring amount of LwM2M traffic."
+    default y
+
+config ANJAY_WITH_OBSERVATION_STATUS
+    bool "Enable support for the anjay_resource_observation_status() API."
+    default y
+
+
+config ANJAY_WITH_LEGACY_CONTENT_FORMAT_SUPPORT
+    bool "Enable support for legacy CoAP Content-Format values"
+    default n
+    help
+      Enable support for legacy CoAP Content-Format numerical values 1541-1543 that
+      have been used before final LwM2M TS 1.0.
+
+config ANJAY_WITH_LWM2M_JSON
+    bool "Enable support for JSON format as specified in LwM2M TS 1.0."
+    default n
+
+config ANJAY_WITHOUT_TLV
+    bool "Disable support for TLV format as specified in LwM2M TS 1.0."
+    default n
+
+config ANJAY_WITHOUT_PLAINTEXT
+    bool "Disable support for Plain Text format as specified in LwM2M TS 1.0. and 1.1"
+    default n
+
+config ANJAY_WITHOUT_DEREGISTER
+    bool "Disable use of the Deregister message."
+    default n
+
+config ANJAY_WITHOUT_IP_STICKINESS
+    bool "Disable support for \"IP stickiness\""
+    default y
+    help
+      "IP stickiness" is a preference of the same IP address when reconnecting to
+      a server using a domain name.
+
+
+config ANJAY_WITH_CON_ATTR
+    bool "Enable support for custom \"con\" attribute that controls Confirmable notifications."
+    default n
+    depends on ANJAY_WITH_OBSERVE
+
+config ANJAY_MAX_PK_OR_IDENTITY_SIZE
+    int "Maximum size of the \"Public Key or Identity\""
+    default 256
+    help
+      Maximum size in bytes supported for the \"Public Key or Identity\" resource
+      in the LwM2M Security object.
+
+config ANJAY_MAX_SECRET_KEY_SIZE
+    int "Maximum size of the \"Secret Key\""
+    default 128
+    help
+      Maximum size in bytes supported for the \"Secret Key\" resource in the LwM2M
+      Security Object.
+
+config ANJAY_MAX_DOUBLE_STRING_SIZE
+    int "Maximum length supported for stringified floating-point values."
+    default 64
+    help
+      Used when parsing plaintext and SenML JSON content formats - when parsing a
+      floating-point value, any string of length equal or greater than this setting
+      will automatically be considered invalid, even if it could in theory be
+      parsed as a valid number.
+
+config ANJAY_MAX_URI_SEGMENT_SIZE
+    int "Maximum length supported for a single Uri-Path or Location-Path segment."
+    default 64
+    help
+      When handling incoming CoAP messages, any Uri-Path or Location-Path option of
+      length equal or greater than this setting will be considered invalid.
+
+config ANJAY_MAX_URI_QUERY_SEGMENT_SIZE
+    int "Maximum length supported for a single Uri-Query segment."
+    default 64
+    help
+      When handling incoming CoAP messages, any Uri-Query option of length equal or
+      greater than this setting will be considered invalid.
+
+config ANJAY_DTLS_SESSION_BUFFER_SIZE
+    int "DTLS buffer size"
+    default 1024
+    help
+      Size of buffer allocated for storing DTLS session state when connection is
+      not in use (e.g. during queue mode operation).
+
+config ANJAY_WITH_MODULE_ATTR_STORAGE
+    bool "Enable attr_storage module"
+    default y
+
+config ANJAY_WITH_MODULE_ACCESS_CONTROL
+    bool "Enable access control module"
+    default y
+    depends on ANJAY_WITH_ACCESS_CONTROL
+
+config ANJAY_WITH_MODULE_SECURITY
+    bool "Enable security module"
+    default y
+
+config ANJAY_WITH_MODULE_SERVER
+    bool "Enable server module"
+    default y
+
+config ANJAY_WITH_MODULE_FW_UPDATE
+    bool "Enable fw_update module"
+    default y
+    depends on ANJAY_WITH_DOWNLOADER
+
+
 endif
 
 endmenu

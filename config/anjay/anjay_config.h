@@ -74,14 +74,18 @@
  *
  * If this flag is disabled, no logging is compiled into the binary at all.
  */
-#define ANJAY_WITH_LOGS
+#ifdef CONFIG_ANJAY_WITH_LOGS
+#    define ANJAY_WITH_LOGS
+#endif // CONFIG_ANJAY_WITH_LOGS
 
 /**
  * Enable TRACE-level logs in Anjay.
  *
  * Only meaningful if <c>ANJAY_WITH_LOGS</c> is enabled.
  */
-#define ANJAY_WITH_TRACE_LOGS
+#ifdef CONFIG_ANJAY_WITH_TRACE_LOGS
+#    define ANJAY_WITH_TRACE_LOGS
+#endif // CONFIG_ANJAY_WITH_TRACE_LOGS
 
 /**
  * Enable core support for Access Control mechanisms.
@@ -91,38 +95,50 @@
  * <c>ANJAY_WITH_MODULE_ACCESS_CONTROL</c>, or a custom application-provided one
  * may be used.
  */
-#define ANJAY_WITH_ACCESS_CONTROL
+#ifdef CONFIG_ANJAY_WITH_ACCESS_CONTROL
+#    define ANJAY_WITH_ACCESS_CONTROL
+#endif // CONFIG_ANJAY_WITH_ACCESS_CONTROL
 
 /**
  * Enable support for the <c>anjay_download()</c> API.
  */
-#define ANJAY_WITH_DOWNLOADER
+#ifdef CONFIG_ANJAY_WITH_DOWNLOADER
+#    define ANJAY_WITH_DOWNLOADER
+#endif // CONFIG_ANJAY_WITH_DOWNLOADER
 
 /**
  * Enable support for CoAP(S) downloads.
  *
  * Only meaningful if <c>ANJAY_WITH_DOWNLOADER</c> is enabled.
  */
-#define ANJAY_WITH_COAP_DOWNLOAD
+#ifdef CONFIG_ANJAY_WITH_COAP_DOWNLOAD
+#    define ANJAY_WITH_COAP_DOWNLOAD
+#endif // CONFIG_ANJAY_WITH_COAP_DOWNLOAD
 
 /**
  * Enable support for HTTP(S) downloads.
  *
  * Only meaningful if <c>ANJAY_WITH_DOWNLOADER</c> is enabled.
  */
-/* #undef ANJAY_WITH_HTTP_DOWNLOAD */
+#ifdef CONFIG_ANJAY_WITH_HTTP_DOWNLOAD
+#    define ANJAY_WITH_HTTP_DOWNLOAD
+#endif // CONFIG_ANJAY_WITH_HTTP_DOWNLOAD
 
 /**
  * Enable support for the LwM2M Bootstrap Interface.
  */
-#define ANJAY_WITH_BOOTSTRAP
+#ifdef CONFIG_ANJAY_WITH_BOOTSTRAP
+#    define ANJAY_WITH_BOOTSTRAP
+#endif // CONFIG_ANJAY_WITH_BOOTSTRAP
 
 /**
  * Enable support for the LwM2M Discover operation.
  *
  * Note that it is required for full compliance with the LwM2M protocol.
  */
-#define ANJAY_WITH_DISCOVER
+#ifdef CONFIG_ANJAY_WITH_DISCOVER
+#    define ANJAY_WITH_DISCOVER
+#endif // CONFIG_ANJAY_WITH_DISCOVER
 
 /**
  * Enable support for the LwM2M Information Reporting interface (Observe and
@@ -133,7 +149,9 @@
  *
  * Note that it is required for full compliance with the LwM2M protocol.
  */
-#define ANJAY_WITH_OBSERVE
+#ifdef CONFIG_ANJAY_WITH_OBSERVE
+#    define ANJAY_WITH_OBSERVE
+#endif // CONFIG_ANJAY_WITH_OBSERVE
 
 /**
  * Enable support for measuring amount of LwM2M traffic
@@ -141,12 +159,16 @@
  * <c>anjay_get_num_incoming_retransmissions()</c> and
  * <c>anjay_get_num_outgoing_retransmissions()</c> APIs.
  */
-#define ANJAY_WITH_NET_STATS
+#ifdef CONFIG_ANJAY_WITH_NET_STATS
+#    define ANJAY_WITH_NET_STATS
+#endif // CONFIG_ANJAY_WITH_NET_STATS
 
 /**
  * Enable support for the <c>anjay_resource_observation_status()</c> API.
  */
-#define ANJAY_WITH_OBSERVATION_STATUS
+#ifdef CONFIG_ANJAY_WITH_OBSERVATION_STATUS
+#    define ANJAY_WITH_OBSERVATION_STATUS
+#endif // CONFIG_ANJAY_WITH_OBSERVATION_STATUS
 
 /**
  * Enable support for features new to LwM2M protocol version 1.1.
@@ -154,7 +176,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_LWM2M11 */
+#ifdef CONFIG_ANJAY_WITH_LWM2M11
+#    define ANJAY_WITH_LWM2M11
+#endif // CONFIG_ANJAY_WITH_LWM2M11
 
 /**
  * Enable support for OSCORE-based security for LwM2M connections.
@@ -165,7 +189,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_COAP_OSCORE */
+#ifdef CONFIG_ANJAY_WITH_COAP_OSCORE
+#    define ANJAY_WITH_COAP_OSCORE
+#endif // CONFIG_ANJAY_WITH_COAP_OSCORE
 
 /**
  * Enable support for the LwM2M Send operation.
@@ -176,7 +202,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_SEND */
+#ifdef CONFIG_ANJAY_WITH_SEND
+#    define ANJAY_WITH_SEND
+#endif // CONFIG_ANJAY_WITH_SEND
 
 /**
  * Enable support for the SMS binding and the SMS trigger mechanism.
@@ -187,7 +215,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_SMS */
+#ifdef CONFIG_ANJAY_WITH_SMS
+#    define ANJAY_WITH_SMS
+#endif // CONFIG_ANJAY_WITH_SMS
 
 /**
  * Enable support for sending and receiving multipart SMS messages.
@@ -197,7 +227,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_SMS_MULTIPART */
+#ifdef CONFIG_ANJAY_WITH_SMS_MULTIPART
+#    define ANJAY_WITH_SMS_MULTIPART
+#endif // CONFIG_ANJAY_WITH_SMS_MULTIPART
 
 /**
  * Enable support for Non-IP Data Delivery.
@@ -208,7 +240,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_NIDD */
+#ifdef CONFIG_ANJAY_WITH_NIDD
+#    define ANJAY_WITH_NIDD
+#endif // CONFIG_ANJAY_WITH_NIDD
 
 /**
  * Enable support for core state persistence
@@ -222,13 +256,17 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_CORE_PERSISTENCE */
+#ifdef CONFIG_ANJAY_WITH_CORE_PERSISTENCE
+#    define ANJAY_WITH_CORE_PERSISTENCE
+#endif // CONFIG_ANJAY_WITH_CORE_PERSISTENCE
 
 /**
  * Enable support for CoAP Content-Format numerical values 1541-1543 that have
  * been used before final LwM2M TS 1.0.
  */
-/* #undef ANJAY_WITH_LEGACY_CONTENT_FORMAT_SUPPORT */
+#ifdef CONFIG_ANJAY_WITH_LEGACY_CONTENT_FORMAT_SUPPORT
+#    define ANJAY_WITH_LEGACY_CONTENT_FORMAT_SUPPORT
+#endif // CONFIG_ANJAY_WITH_LEGACY_CONTENT_FORMAT_SUPPORT
 
 /**
  * Enable support for JSON format as specified in LwM2M TS 1.0.
@@ -236,7 +274,9 @@
  * NOTE: Anjay is only capable of generating this format, there is no parsing
  * support regardless of the state of this option.
  */
-#define ANJAY_WITH_LWM2M_JSON
+#ifdef CONFIG_ANJAY_WITH_LWM2M_JSON
+#    define ANJAY_WITH_LWM2M_JSON
+#endif // CONFIG_ANJAY_WITH_LWM2M_JSON
 
 /**
  * Disable support for TLV format as specified in LwM2M TS 1.0.
@@ -244,7 +284,9 @@
  * NOTE: LwM2M Client using LwM2M 1.0 MUST support this format. It may be
  * disabled if LwM2M 1.1 is used and SenML JSON or SenML CBOR is enabled.
  */
-/* #undef ANJAY_WITHOUT_TLV */
+#ifdef CONFIG_ANJAY_WITHOUT_TLV
+#    define ANJAY_WITHOUT_TLV
+#endif // CONFIG_ANJAY_WITHOUT_TLV
 
 /**
  * Disable support for Plain Text format as specified in LwM2M TS 1.0 and 1.1.
@@ -252,18 +294,24 @@
  * NOTE: LwM2M Client SHOULD support this format. It may be disabled to reduce
  * library size if LwM2M Server is configured to not use it in requests.
  */
-/* #undef ANJAY_WITHOUT_PLAINTEXT */
+#ifdef CONFIG_ANJAY_WITHOUT_PLAINTEXT
+#    define ANJAY_WITHOUT_PLAINTEXT
+#endif // CONFIG_ANJAY_WITHOUT_PLAINTEXT
 
 /**
  * Disable use of the Deregister message.
  */
-/* #undef ANJAY_WITHOUT_DEREGISTER */
+#ifdef CONFIG_ANJAY_WITHOUT_DEREGISTER
+#    define ANJAY_WITHOUT_DEREGISTER
+#endif // CONFIG_ANJAY_WITHOUT_DEREGISTER
 
 /**
  * Disable support for "IP stickiness", i.e. preference of the same IP address
  * when reconnecting to a server using a domain name.
  */
-#define ANJAY_WITHOUT_IP_STICKINESS
+#ifdef CONFIG_ANJAY_WITHOUT_IP_STICKINESS
+#    define ANJAY_WITHOUT_IP_STICKINESS
+#endif // CONFIG_ANJAY_WITHOUT_IP_STICKINESS
 
 /**
  * Enable support for SenML JSON format, as specified in LwM2M TS 1.1.
@@ -276,7 +324,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_SENML_JSON */
+#ifdef CONFIG_ANJAY_WITH_SENML_JSON
+#    define ANJAY_WITH_SENML_JSON
+#endif // CONFIG_ANJAY_WITH_SENML_JSON
 
 /**
  * Enable support for CBOR and SenML CBOR formats, as specified in LwM2M TS 1.1.
@@ -286,7 +336,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_CBOR */
+#ifdef CONFIG_ANJAY_WITH_CBOR
+#    define ANJAY_WITH_CBOR
+#endif // CONFIG_ANJAY_WITH_CBOR
 
 /**
  * Enable support for Enrollment over Secure Transport.
@@ -297,7 +349,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_EST */
+#ifdef CONFIG_ANJAY_WITH_EST
+#    define ANJAY_WITH_EST
+#endif // CONFIG_ANJAY_WITH_EST
 
 /**
  * Enable support for custom "con" attribute that controls Confirmable
@@ -305,7 +359,9 @@
  *
  * Requires <c>ANJAY_WITH_OBSERVE</c> to be enabled.
  */
-/* #undef ANJAY_WITH_CON_ATTR */
+#ifdef CONFIG_ANJAY_WITH_CON_ATTR
+#    define ANJAY_WITH_CON_ATTR
+#endif // CONFIG_ANJAY_WITH_CON_ATTR
 
 /**
  * Maximum size in bytes supported for the "Public Key or Identity" resource in
@@ -317,7 +373,7 @@
  * The default value defined in CMake build scripts is 2048.
  * Minimal suggested setting for low-resource builds is 256.
  */
-#define ANJAY_MAX_PK_OR_IDENTITY_SIZE 256
+#define ANJAY_MAX_PK_OR_IDENTITY_SIZE (CONFIG_ANJAY_MAX_PK_OR_IDENTITY_SIZE)
 
 /**
  * Maximum size in bytes supported for the "Secret Key" resource in the LwM2M
@@ -329,7 +385,7 @@
  * The default value defined in CMake build scripts is 256.
  * Minimal suggested setting for low-resource builds is 128.
  */
-#define ANJAY_MAX_SECRET_KEY_SIZE 128
+#define ANJAY_MAX_SECRET_KEY_SIZE (CONFIG_ANJAY_MAX_SECRET_KEY_SIZE)
 
 /**
  * Maximum length supported for stringified floating-point values.
@@ -345,7 +401,7 @@
  * The default value defined in CMake build scripts is 512.
  * Minimal suggested setting for low-resource builds is 64.
  */
-#define ANJAY_MAX_DOUBLE_STRING_SIZE 64
+#define ANJAY_MAX_DOUBLE_STRING_SIZE (CONFIG_ANJAY_MAX_DOUBLE_STRING_SIZE)
 
 /**
  * Maximum length supported for a single Uri-Path or Location-Path segment.
@@ -359,7 +415,7 @@
  * The default value defined in CMake build scripts is 256.
  * Minimal suggested setting for low-resource builds is 64.
  */
-#define ANJAY_MAX_URI_SEGMENT_SIZE 64
+#define ANJAY_MAX_URI_SEGMENT_SIZE (CONFIG_ANJAY_MAX_URI_SEGMENT_SIZE)
 
 /**
  * Maximum length supported for a single Uri-Query segment.
@@ -373,7 +429,8 @@
  * The default value defined in CMake build scripts is 256.
  * Minimal suggested setting for low-resource builds is 64.
  */
-#define ANJAY_MAX_URI_QUERY_SEGMENT_SIZE 64
+#define ANJAY_MAX_URI_QUERY_SEGMENT_SIZE \
+    (CONFIG_ANJAY_MAX_URI_QUERY_SEGMENT_SIZE)
 
 /**
  * Size of buffer allocated for storing DTLS session state when connection is
@@ -383,7 +440,7 @@
  * replaced with a positive integer literal. The default value defined in CMake
  * build scripts is 1024.
  */
-#define ANJAY_DTLS_SESSION_BUFFER_SIZE 1024
+#define ANJAY_DTLS_SESSION_BUFFER_SIZE (CONFIG_ANJAY_DTLS_SESSION_BUFFER_SIZE)
 
 /**
  * Optional Anjay modules.
@@ -395,31 +452,41 @@
  * Requires <c>AVS_COMMONS_WITH_AVS_PERSISTENCE</c> to be enabled in avs_commons
  * configuration.
  */
-#define ANJAY_WITH_MODULE_ATTR_STORAGE
+#ifdef CONFIG_ANJAY_WITH_MODULE_ATTR_STORAGE
+#    define ANJAY_WITH_MODULE_ATTR_STORAGE
+#endif // CONFIG_ANJAY_WITH_MODULE_ATTR_STORAGE
 
 /**
  * Enable access_control module (implementation of the Access Control object).
  *
  * Requires <c>ANJAY_WITH_ACCESS_CONTROL</c> to be enabled.
  */
-#define ANJAY_WITH_MODULE_ACCESS_CONTROL
+#ifdef CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
+#    define ANJAY_WITH_MODULE_ACCESS_CONTROL
+#endif // CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
 
 /**
  * Enable security module (implementation of the LwM2M Security object).
  */
-#define ANJAY_WITH_MODULE_SECURITY
+#ifdef CONFIG_ANJAY_WITH_MODULE_SECURITY
+#    define ANJAY_WITH_MODULE_SECURITY
+#endif // CONFIG_ANJAY_WITH_MODULE_SECURITY
 
 /**
  * Enable server module (implementation of the LwM2M Server object).
  */
-#define ANJAY_WITH_MODULE_SERVER
+#ifdef CONFIG_ANJAY_WITH_MODULE_SERVER
+#    define ANJAY_WITH_MODULE_SERVER
+#endif // CONFIG_ANJAY_WITH_MODULE_SERVER
 
 /**
  * Enable fw_update module (implementation of the Firmware Update object).
  *
  * Requires <c>ANJAY_WITH_DOWNLOADER</c> to be enabled.
  */
-#define ANJAY_WITH_MODULE_FW_UPDATE
+#ifdef CONFIG_ANJAY_WITH_MODULE_FW_UPDATE
+#    define ANJAY_WITH_MODULE_FW_UPDATE
+#endif // CONFIG_ANJAY_WITH_MODULE_FW_UPDATE
 
 /**
  * Enable at_sms module (implementation of an SMS driver for AT modem devices).
@@ -430,7 +497,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_MODULE_AT_SMS */
+#ifdef CONFIG_ANJAY_WITH_MODULE_AT_SMS
+#    define ANJAY_WITH_MODULE_AT_SMS
+#endif // CONFIG_ANJAY_WITH_MODULE_AT_SMS
 
 /**
  * Enable bg96_nidd module (implementation of NB-IoT-based NIDD driver for
@@ -441,7 +510,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_MODULE_BG96_NIDD */
+#ifdef CONFIG_ANJAY_WITH_MODULE_BG96_NIDD
+#    define ANJAY_WITH_MODULE_BG96_NIDD
+#endif // CONFIG_ANJAY_WITH_MODULE_BG96_NIDD
 
 /**
  * Enable bootstrapper module (loader for bootstrap information formatted as per
@@ -455,7 +526,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_MODULE_BOOTSTRAPPER */
+#ifdef CONFIG_ANJAY_WITH_MODULE_BOOTSTRAPPER
+#    define ANJAY_WITH_MODULE_BOOTSTRAPPER
+#endif // CONFIG_ANJAY_WITH_MODULE_BOOTSTRAPPER
 
 /**
  * Enable oscore module (implementation of the OSCORE object).
@@ -463,7 +536,9 @@
  * IMPORTANT: Only available in the commercial version. Ignored in the open
  * source version.
  */
-/* #undef ANJAY_WITH_MODULE_OSCORE */
+#ifdef CONFIG_ANJAY_WITH_MODULE_OSCORE
+#    define ANJAY_WITH_MODULE_OSCORE
+#endif // CONFIG_ANJAY_WITH_MODULE_OSCORE
 /**@}*/
 
 #endif // ANJAY_CONFIG_H
