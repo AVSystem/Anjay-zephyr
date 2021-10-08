@@ -23,6 +23,7 @@ zephyr_library_sources(
     ${ANJAY_SOURCES}
     ${AVS_COMMONS_SOURCES}
     ${AVS_COAP_SOURCES}
+    compat/threading_compat.c
     )
 
 zephyr_library_sources_ifdef(CONFIG_ANJAY_COMPAT_MBEDTLS compat/mbedtls_compat.c)

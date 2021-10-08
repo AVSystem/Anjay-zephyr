@@ -21,6 +21,7 @@ if ANJAY
 
 config ANJAY_COMPAT_MBEDTLS
     bool "Enable Mbedtls compatibility implementation"
+    depends on MBEDTLS
 
 config ANJAY_COMPAT_NET
     bool "Enable Net compatibility implementation"
@@ -82,6 +83,14 @@ config ANJAY_WITH_NET_STATS
 
 config ANJAY_WITH_OBSERVATION_STATUS
     bool "Enable support for the anjay_resource_observation_status() API."
+    default y
+
+config ANJAY_WITH_THREAD_SAFETY
+    bool "Enable guarding of all accesses to anjay_t with a mutex."
+    default y
+
+config ANJAY_WITH_EVENT_LOOP
+    bool "Enable default implementation of the event loop."
     default y
 
 
@@ -187,6 +196,10 @@ config ANJAY_WITH_MODULE_FW_UPDATE
     default y
     depends on ANJAY_WITH_DOWNLOADER
 
+
+config ANJAY_WITH_MODULE_IPSO_OBJECTS
+    bool "Enable IPSO objects implementation"
+    default y
 
 endif
 

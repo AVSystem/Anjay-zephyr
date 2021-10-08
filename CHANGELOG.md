@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.14.0 (Oct 8th, 2021)
+- Updated Anjay to version 2.14.0
+- Added native Zephyr threading integration
+
 ## 2.13.0 (Jul 30th, 2021)
 - Updated Anjay to version 2.13.0
 - Improved socket handling layer

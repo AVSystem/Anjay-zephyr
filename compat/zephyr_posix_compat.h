@@ -13,3 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#ifndef COMPAT_H
+#define COMPAT_H
+
+#include <net/socket.h>
+
+typedef int sockfd_t;
+
+#ifndef pollfd
+#    define pollfd zsock_pollfd
+#endif // pollfd
+
+#ifndef poll
+#    define poll zsock_poll
+#endif // poll
+
+#ifndef POLLIN
+#    define POLLIN ZSOCK_POLLIN
+#endif // POLLIN
+
+#endif /* COMPAT_H */

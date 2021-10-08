@@ -42,6 +42,10 @@
  * commented out <c>#undef</c> directives.
  */
 
+#ifdef CONFIG_MBEDTLS
+#    include <mbedtls/version.h>
+#endif // CONFIG_MBEDTLS
+
 /**
  * Options that describe capabilities of the build environment.
  *
@@ -233,7 +237,7 @@
  * This implementation is usually very inefficient, and requires C11 stdatomic.h
  * header to be available.
  */
-#define AVS_COMMONS_COMPAT_THREADING_WITH_ATOMIC_SPINLOCK
+/* #undef AVS_COMMONS_COMPAT_THREADING_WITH_ATOMIC_SPINLOCK */
 
 /**
  * Enable implementation based on the POSIX Threads library.
@@ -271,7 +275,9 @@
  * TinyDTLS support is only rudimentary.
  */
 /**@{*/
-#define AVS_COMMONS_WITH_MBEDTLS
+#ifdef CONFIG_ANJAY_COMPAT_MBEDTLS
+#    define AVS_COMMONS_WITH_MBEDTLS
+#endif // CONFIG_ANJAY_COMPAT_MBEDTLS
 /* #undef AVS_COMMONS_WITH_OPENSSL */
 /* #undef AVS_COMMONS_WITH_TINYDTLS */
 /**@}*/
@@ -284,7 +290,10 @@
  * Enable AEAD and HKDF support in avs_crypto. Requires MbedTLS in version at
  * least 2.14.0 or OpenSSL in version at least 1.1.0.
  */
-/* #undef AVS_COMMONS_WITH_AVS_CRYPTO_ADVANCED_FEATURES */
+#if defined(CONFIG_ANJAY_WITH_COAP_OSCORE) || defined(CONFIG_ANJAY_WITH_EST)
+#    define AVS_COMMONS_WITH_AVS_CRYPTO_ADVANCED_FEATURES
+#endif // defined(CONFIG_ANJAY_WITH_COAP_OSCORE) ||
+       // defined(CONFIG_ANJAY_WITH_EST)
 
 /**
  * If the TLS backend is either mbed TLS or OpenSSL, enables APIs related to
@@ -295,21 +304,21 @@
  * It also enables support for X.509 certificates in avs_net, if that module is
  * also enabled.
  */
-#if defined(CONFIG_MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED)            \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_RSA_ENABLED)         \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED)     \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED)   \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)  \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)
+#if defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED)            \
+        || defined(MBEDTLS_KEY_EXCHANGE_RSA_ENABLED)         \
+        || defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED)     \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED)   \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)  \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)
 #    define AVS_COMMONS_WITH_AVS_CRYPTO_PKI
-#endif // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_RSA_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)
+#endif // defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_RSA_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)
 
 /**
  * Enables usage of Valgrind API to suppress some of the false positives
@@ -317,13 +326,15 @@
  */
 /* #undef AVS_COMMONS_WITH_AVS_CRYPTO_VALGRIND */
 
+#ifdef MBEDTLS_USE_PSA_CRYPTO
 /**
  * Enables high-level support for hardware-based security, i.e. loading,
  * generating and managing keys and certificates via external engines.
  *
  * An actual implementation is required to use this feature. In the commercial
- * version, you may use one of the default ones utilizing the PKCS#11 API (see
- * @ref AVS_COMMONS_WITH_MBEDTLS_PKCS11_ENGINE and
+ * version, you may use one of the default ones (see
+ * @ref AVS_COMMONS_WITH_MBEDTLS_PKCS11_ENGINE,
+ * @ref AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE and
  * @ref AVS_COMMONS_WITH_OPENSSL_PKCS11_ENGINE) or provide your own.
  *
  * The functions that need to be provided in case of a custom implementation:
@@ -346,7 +357,7 @@
  *
  * External engines are supported only in OpenSSL and Mbed TLS backends.
  */
-/* #undef AVS_COMMONS_WITH_AVS_CRYPTO_ENGINE */
+#    define AVS_COMMONS_WITH_AVS_CRYPTO_ENGINE
 
 /**
  * Enables the default implementation of avs_crypto engine, based on Mbed TLS
@@ -354,12 +365,58 @@
  *
  * Requires @ref AVS_COMMONS_WITH_AVS_CRYPTO_ENGINE to be enabled.
  *
+ * NOTE: Query string format for this engine is a subset of the PKCS#11 URI
+ * scheme (see RFC 7512), modelled after the format accepted by libp11 OpenSSL
+ * engine.
+ *
  * NOTE: The unit tests for this feature depend on SoftHSM and pkcs11-tool.
  * These must be installed for the tests to pass.
  *
  * IMPORTANT: Only available in the commercial version. Ignored in the open
- * source version. */
+ * source version.
+ */
 /* #undef AVS_COMMONS_WITH_MBEDTLS_PKCS11_ENGINE */
+
+/**
+ * Enables the default implementation of avs_crypto engine, based on Mbed TLS
+ * and Platform Security Architecture (PSA).
+ *
+ * Requires @ref AVS_COMMONS_WITH_AVS_CRYPTO_ENGINE to be enabled.
+ *
+ * NOTE: Query string format for this engine is:
+ *
+ * <pre>
+ * kid=<key_ID>[,lifetime=<lifetime>]|uid=<persistent_storage_UID>
+ * </pre>
+ *
+ * The values are parsed using strtoull() with base=0, so may be in decimal,
+ * 0-prefixed octal or 0x-prefixed hexadecimal. On key generation and
+ * certificate storage, the specified lifetime will be used, or lifetime 1
+ * (default persistent storage) will be used if not. On key or certificate use,
+ * the lifetime of the actual key will be verified if present on the query
+ * string and the key will be rejected if different.
+ *
+ * Certificates are stored as PSA_KEY_TYPE_RAW_DATA key entries containing
+ * X.509 DER data. Alternatively, the PSA Protected Storage API can be used if
+ * @ref AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE_PROTECTED_STORAGE is enabled, by
+ * using the <c>uid=...</c> syntax.
+ *
+ * IMPORTANT: Only available in the commercial version. Ignored in the open
+ * source version.
+ */
+#    define AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE
+#endif // MBEDTLS_USE_PSA_CRYPTO
+
+/**
+ * Enables support for the PSA Protected Storage API in the PSA-based avs_crypto
+ * engine.
+ *
+ * Requires @ref AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE to be enabled.
+ *
+ * IMPORTANT: Only available in the commercial version. Ignored in the open
+ * source version.
+ */
+/* #undef AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE_PROTECTED_STORAGE */
 
 /**
  * Is the <c>dlsym()</c> function available?
@@ -382,11 +439,16 @@
  *
  * Requires @ref AVS_COMMONS_WITH_AVS_CRYPTO_ENGINE to be enabled.
  *
+ * NOTE: Query string format for this engine is a subset of the PKCS#11 URI
+ * scheme (see RFC 7512), modelled after the format accepted by libp11 OpenSSL
+ * engine.
+ *
  * NOTE: The unit tests for this feature depend on SoftHSM and pkcs11-tool.
  * These must be installed for the tests to pass.
  *
  * IMPORTANT: Only available in the commercial version. Ignored in the open
- * source version. */
+ * source version.
+ */
 /* #undef AVS_COMMONS_WITH_OPENSSL_PKCS11_ENGINE */
 /**@}*/
 
@@ -470,6 +532,13 @@
  * components.
  */
 /* #undef AVS_COMMONS_WITH_INTERNAL_TRACE */
+
+/**
+ * Enables external implementation of logger subsystem with provided header.
+ *
+ * Default logger implementation can be found in avs_log_impl.h
+ */
+/* #undef AVS_COMMONS_WITH_EXTERNAL_LOGGER_HEADER */
 /**@}*/
 
 /**
@@ -528,15 +597,15 @@
  *
  * PSK is the only supported security mode for the TinyDTLS backend.
  */
-#if defined(CONFIG_MBEDTLS_KEY_EXCHANGE_PSK_ENABLED)            \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED) \
-        || defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED)
+#if defined(MBEDTLS_KEY_EXCHANGE_PSK_ENABLED)            \
+        || defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) \
+        || defined(MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED) \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED)
 #    define AVS_COMMONS_NET_WITH_PSK
-#endif // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_PSK_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED) ||
-       // defined(CONFIG_MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED)
+#endif // defined(MBEDTLS_KEY_EXCHANGE_PSK_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED)
 
 /**
  * Enables support for logging socket communication to file.
@@ -640,7 +709,9 @@
  * Makes all scheduler accesses synchronized and thread-safe, at the cost of
  * requiring avs_compat_threading to be enabled, and higher resource usage.
  */
-/* #undef AVS_COMMONS_SCHED_THREAD_SAFE */
+#ifdef CONFIG_ANJAY_WITH_THREAD_SAFETY
+#    define AVS_COMMONS_SCHED_THREAD_SAFE
+#endif // CONFIG_ANJAY_WITH_THREAD_SAFETY
 
 /**
  * Enable support for file I/O in avs_stream.

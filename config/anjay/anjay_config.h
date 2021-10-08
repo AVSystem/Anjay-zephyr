@@ -171,6 +171,32 @@
 #endif // CONFIG_ANJAY_WITH_OBSERVATION_STATUS
 
 /**
+ * Enable guarding of all accesses to <c>anjay_t</c> with a mutex.
+ */
+#ifdef CONFIG_ANJAY_WITH_THREAD_SAFETY
+#    define ANJAY_WITH_THREAD_SAFETY
+#endif // CONFIG_ANJAY_WITH_THREAD_SAFETY
+
+/**
+ * Enable standard implementation of an event loop.
+ *
+ * Requires C11 <c>stdatomic.h</c> header to be available, and either a platform
+ * that provides a BSD-compatible socket API, or a compatibility layer file (see
+ * <c>AVS_COMMONS_POSIX_COMPAT_HEADER</c> in <c>avs_commons_config.h</c>). This
+ * is designed to best work with the defalt implementation of avs_net sockets
+ * (see <c>AVS_COMMONS_NET_WITH_POSIX_AVS_SOCKET</c>), but alternative socket
+ * implementations can also be used.
+ *
+ * The event loop is most useful when thread safety features
+ * (@ref ANJAY_WITH_THREAD_SAFETY and <c>AVS_COMMONS_SCHED_THREAD_SAFE</c>) are
+ * enabled as well, but this is not a hard requirement. See the documentation
+ * for <c>anjay_event_loop_run()</c> for details.
+ */
+#ifdef CONFIG_ANJAY_WITH_EVENT_LOOP
+#    define ANJAY_WITH_EVENT_LOOP
+#endif // CONFIG_ANJAY_WITH_EVENT_LOOP
+
+/**
  * Enable support for features new to LwM2M protocol version 1.1.
  *
  * IMPORTANT: Only available in the commercial version. Ignored in the open
@@ -481,8 +507,6 @@
 
 /**
  * Enable fw_update module (implementation of the Firmware Update object).
- *
- * Requires <c>ANJAY_WITH_DOWNLOADER</c> to be enabled.
  */
 #ifdef CONFIG_ANJAY_WITH_MODULE_FW_UPDATE
 #    define ANJAY_WITH_MODULE_FW_UPDATE
@@ -539,6 +563,15 @@
 #ifdef CONFIG_ANJAY_WITH_MODULE_OSCORE
 #    define ANJAY_WITH_MODULE_OSCORE
 #endif // CONFIG_ANJAY_WITH_MODULE_OSCORE
+
+/**
+ * Enables generic implementation of the following kinds of IPSO objects:
+ *  - basic sensor
+ *  - three axis sensor
+ */
+#ifdef CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS
+#    define ANJAY_WITH_MODULE_IPSO_OBJECTS
+#endif // CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS
 /**@}*/
 
 #endif // ANJAY_CONFIG_H
