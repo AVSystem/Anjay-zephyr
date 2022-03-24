@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -277,9 +277,27 @@
 /**@{*/
 #ifdef CONFIG_ANJAY_COMPAT_MBEDTLS
 #    define AVS_COMMONS_WITH_MBEDTLS
+
+// Use alternate implementation of mbedtls_entropy_init() to make the
+// default PRNG implementation "just work".
+struct mbedtls_entropy_context;
+void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
+#    define mbedtls_entropy_init anjay_zephyr_mbedtls_entropy_init__
 #endif // CONFIG_ANJAY_COMPAT_MBEDTLS
 /* #undef AVS_COMMONS_WITH_OPENSSL */
 /* #undef AVS_COMMONS_WITH_TINYDTLS */
+
+/**
+ * Enable support for custom TLS socket implementation.
+ *
+ * If enabled, the user needs to provide their own implementations of
+ * <c>_avs_net_create_ssl_socket()</c>, <c>_avs_net_create_dtls_socket()</c>,
+ * <c>_avs_net_initialize_global_ssl_state() and
+ * <c>_avs_net_cleanup_global_ssl_state()</c>.
+ */
+#ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+#    define AVS_COMMONS_WITH_CUSTOM_TLS
+#endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
 /**@}*/
 
 /**
@@ -288,7 +306,8 @@
 /**@{*/
 /**
  * Enable AEAD and HKDF support in avs_crypto. Requires MbedTLS in version at
- * least 2.14.0 or OpenSSL in version at least 1.1.0.
+ * least 2.14.0, OpenSSL in version at least 1.1.0, or custom implementation in
+ * case of <c>AVS_COMMONS_WITH_CUSTOM_TLS</c>.
  */
 #if defined(CONFIG_ANJAY_WITH_COAP_OSCORE) || defined(CONFIG_ANJAY_WITH_EST)
 #    define AVS_COMMONS_WITH_AVS_CRYPTO_ADVANCED_FEATURES
@@ -304,20 +323,22 @@
  * It also enables support for X.509 certificates in avs_net, if that module is
  * also enabled.
  */
-#if defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED)            \
+#if defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS)                  \
+        || defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED)     \
         || defined(MBEDTLS_KEY_EXCHANGE_RSA_ENABLED)         \
         || defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED)     \
         || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED)   \
         || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) \
-        || defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)  \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDH_RSA_ENABLED)    \
         || defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)
 #    define AVS_COMMONS_WITH_AVS_CRYPTO_PKI
-#endif // defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) ||
+#endif // defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_RSA_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) ||
-       // defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_ECDH_RSA_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)
 
 /**
@@ -326,7 +347,6 @@
  */
 /* #undef AVS_COMMONS_WITH_AVS_CRYPTO_VALGRIND */
 
-#ifdef MBEDTLS_USE_PSA_CRYPTO
 /**
  * Enables high-level support for hardware-based security, i.e. loading,
  * generating and managing keys and certificates via external engines.
@@ -354,10 +374,11 @@
  *   - <c>_avs_crypto_openssl_engine_load_certs()</c>
  *   - <c>_avs_crypto_openssl_engine_load_crls()</c>
  *   - <c>_avs_crypto_openssl_engine_load_private_key()</c>
- *
- * External engines are supported only in OpenSSL and Mbed TLS backends.
  */
+#if defined(MBEDTLS_USE_PSA_CRYPTO) || defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS)
 #    define AVS_COMMONS_WITH_AVS_CRYPTO_ENGINE
+#endif // defined(MBEDTLS_USE_PSA_CRYPTO) ||
+       // defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS)
 
 /**
  * Enables the default implementation of avs_crypto engine, based on Mbed TLS
@@ -377,6 +398,7 @@
  */
 /* #undef AVS_COMMONS_WITH_MBEDTLS_PKCS11_ENGINE */
 
+#ifdef MBEDTLS_USE_PSA_CRYPTO
 /**
  * Enables the default implementation of avs_crypto engine, based on Mbed TLS
  * and Platform Security Architecture (PSA).
@@ -510,7 +532,9 @@
  * themselves (as all its internal logs make use of <c>AVS_DISPOSABLE_LOG()</c>)
  * and the user code that uses it.
  */
-/* #undef AVS_COMMONS_WITH_MICRO_LOGS */
+#ifdef CONFIG_ANJAY_WITH_MICRO_LOGS
+#    define AVS_COMMONS_WITH_MICRO_LOGS
+#endif // CONFIG_ANJAY_WITH_MICRO_LOGS
 
 /**
  * Enables logging inside avs_commons.
@@ -538,7 +562,7 @@
  *
  * Default logger implementation can be found in avs_log_impl.h
  */
-/* #undef AVS_COMMONS_WITH_EXTERNAL_LOGGER_HEADER */
+#define AVS_COMMONS_WITH_EXTERNAL_LOGGER_HEADER "../compat/log_impl.h"
 /**@}*/
 
 /**
@@ -597,12 +621,14 @@
  *
  * PSK is the only supported security mode for the TinyDTLS backend.
  */
-#if defined(MBEDTLS_KEY_EXCHANGE_PSK_ENABLED)            \
+#if defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS)              \
+        || defined(MBEDTLS_KEY_EXCHANGE_PSK_ENABLED)     \
         || defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) \
         || defined(MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED) \
         || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED)
 #    define AVS_COMMONS_NET_WITH_PSK
-#endif // defined(MBEDTLS_KEY_EXCHANGE_PSK_ENABLED) ||
+#endif // defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS) ||
+       // defined(MBEDTLS_KEY_EXCHANGE_PSK_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_DHE_PSK_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_ECDHE_PSK_ENABLED)

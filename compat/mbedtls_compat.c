@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 
 #include <mbedtls/entropy.h>
-#include <mbedtls/entropy_poll.h>
 #include <mbedtls/timing.h>
 
 #include <avsystem/commons/avs_defs.h>
@@ -23,62 +22,89 @@
 #include <avsystem/commons/avs_time.h>
 
 #include <drivers/entropy.h>
+#include <random/rand32.h>
 
-/*
- * mbedtls_timing_set_delay, mbedtls_timing_get_delay and
- * mbedtls_timing_get_timer implementations are copy-pasted from
- * mbedtls/library/timing.c .
- */
+typedef struct anjay_mbedtls_timing_delay_context_struct {
+    avs_time_monotonic_t timer;
+    uint32_t int_ms;
+    uint32_t fin_ms;
+} anjay_mbedtls_timing_delay_context_t;
 
 /*
  * Set delays to watch
  */
 void mbedtls_timing_set_delay(void *data, uint32_t int_ms, uint32_t fin_ms) {
-    mbedtls_timing_delay_context *ctx = (mbedtls_timing_delay_context *) data;
+    anjay_mbedtls_timing_delay_context_t *ctx =
+            (anjay_mbedtls_timing_delay_context_t *) data;
 
     ctx->int_ms = int_ms;
     ctx->fin_ms = fin_ms;
 
-    if (fin_ms != 0)
-        (void) mbedtls_timing_get_timer(&ctx->timer, 1);
+    if (fin_ms != 0) {
+        ctx->timer = avs_time_monotonic_now();
+    }
 }
 
 /*
  * Get number of delays expired
  */
 int mbedtls_timing_get_delay(void *data) {
-    mbedtls_timing_delay_context *ctx = (mbedtls_timing_delay_context *) data;
-    unsigned long elapsed_ms;
+    anjay_mbedtls_timing_delay_context_t *ctx =
+            (anjay_mbedtls_timing_delay_context_t *) data;
 
-    if (ctx->fin_ms == 0)
-        return (-1);
-
-    elapsed_ms = mbedtls_timing_get_timer(&ctx->timer, 0);
-
-    if (elapsed_ms >= ctx->fin_ms)
-        return (2);
-
-    if (elapsed_ms >= ctx->int_ms)
-        return (1);
-
-    return (0);
-}
-
-unsigned long mbedtls_timing_get_timer(struct mbedtls_timing_hr_time *val,
-                                       int reset) {
-    AVS_STATIC_ASSERT(sizeof(struct mbedtls_timing_hr_time)
-                              >= sizeof(avs_time_monotonic_t),
-                      avs_time_monotonic_fits);
-    avs_time_monotonic_t *start = (avs_time_monotonic_t *) val;
-    avs_time_monotonic_t offset = avs_time_monotonic_now();
-
-    if (reset) {
-        *start = offset;
-        return 0;
+    if (ctx->fin_ms == 0) {
+        return -1;
     }
 
-    int64_t delta;
-    avs_time_duration_to_scalar(&delta, AVS_TIME_MS,
-                                avs_time_monotonic_diff(offset, *start));
-    return (unsigned long) delta;
+    int64_t elapsed_ms_signed;
+    if (avs_time_duration_to_scalar(
+                &elapsed_ms_signed, AVS_TIME_MS,
+                avs_time_monotonic_diff(avs_time_monotonic_now(),
+                                        ctx->timer))) {
+        return -1;
+    }
+
+    assert(elapsed_ms_signed >= 0);
+    uint64_t elapsed_ms = (uint64_t) elapsed_ms_signed;
+    if (elapsed_ms >= ctx->fin_ms) {
+        return 2;
+    } else if (elapsed_ms >= ctx->int_ms) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+static int entropy_callback(void *dev,
+                            unsigned char *out_buf,
+                            size_t out_buf_len,
+                            size_t *out_buf_out_len) {
+    *out_buf_out_len = out_buf_len;
+#ifdef CONFIG_ENTROPY_HAS_DRIVER
+    assert(dev);
+    return entropy_get_entropy((const struct device *) dev, out_buf,
+                               out_buf_len);
+#else // CONFIG_ENTROPY_HAS_DRIVER
+    // NOTE: This is not at all cryptographically secure. But Zephyr itself does
+    // something like this with their TLS socket implementation, see:
+    // https://github.com/zephyrproject-rtos/zephyr/blob/zephyr-v2.6.0/subsys/net/lib/sockets/sockets_tls.c#L207
+#    warning "No cryptographically secure entropy source; TLS may be insecure"
+    (void) dev;
+    sys_rand_get(out_buf, out_buf_len);
+    return 0;
+#endif // CONFIG_ENTROPY_HAS_DRIVER
+}
+
+void anjay_zephyr_mbedtls_entropy_init__(mbedtls_entropy_context *ctx) {
+    const struct device *entropy_dev = NULL;
+#ifdef CONFIG_ENTROPY_HAS_DRIVER
+    entropy_dev = device_get_binding(DT_CHOSEN_ZEPHYR_ENTROPY_LABEL);
+    AVS_ASSERT(entropy_dev, "Failed to acquire entropy device");
+#endif // CONFIG_ENTROPY_HAS_DRIVER
+    int result =
+            mbedtls_entropy_add_source(ctx, entropy_callback,
+                                       (struct device *) (intptr_t) entropy_dev,
+                                       1, MBEDTLS_ENTROPY_SOURCE_STRONG);
+    (void) result;
+    AVS_ASSERT(!result, "Failed to add entropy source");
 }

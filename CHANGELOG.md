@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.14.1 (Mar 24th, 2022)
+- Updated Anjay to version 2.14.1
+- Added support for Zephyr (and nRF Connect SDK) offloaded (D)TLS sockets
+- Migrated logging to use the native Zephyr logger
+- Moved Mbed TLS entropy handling to this module
+- Updated support for newer versions of Mbed TLS, Zephyr and nRF Connect SDK
+
 ## 2.14.0 (Oct 8th, 2021)
 - Updated Anjay to version 2.14.0
 - Added native Zephyr threading integration

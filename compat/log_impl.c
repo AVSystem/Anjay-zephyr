@@ -14,19 +14,7 @@
  * limitations under the License.
  */
 
-#include <avsystem/commons/avs_time.h>
-#include <kernel.h>
-
-#include <date_time.h>
-
-avs_time_monotonic_t avs_time_monotonic_now(void) {
-    return avs_time_monotonic_from_scalar(k_uptime_get(), AVS_TIME_MS);
-}
-
-avs_time_real_t avs_time_real_now(void) {
-    int64_t time_ms;
-    if (!date_time_now(&time_ms)) {
-        return avs_time_real_from_scalar(time_ms, AVS_TIME_MS);
-    }
-    return avs_time_real_from_scalar(k_uptime_get(), AVS_TIME_MS);
-}
+#define LOG_LEVEL CONFIG_ANJAY_LOG_LEVEL
+#include <logging/log.h>
+/* For now, only registering main anjay log module is required */
+LOG_MODULE_REGISTER(anjay);

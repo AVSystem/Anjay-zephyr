@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,53 +14,68 @@
  * limitations under the License.
  */
 
-#include <net/socket.h>
+#include <avs_commons_init.h>
 
-#include <avsystem/commons/avs_socket_v_table.h>
+#include "net/avs_net_global.h"
+#include "net/avs_net_impl.h"
+
+#include <avsystem/commons/avs_log.h>
 #include <avsystem/commons/avs_utils.h>
 
 #ifdef AVS_COMMONS_NET_WITH_POSIX_AVS_SOCKET
 #    error "Custom implementation of the network layer conflicts with AVS_COMMONS_NET_WITH_POSIX_AVS_SOCKET"
 #endif // AVS_COMMONS_NET_WITH_POSIX_AVS_SOCKET
 
-avs_error_t _avs_net_initialize_global_compat_state(void);
-void _avs_net_cleanup_global_compat_state(void);
-avs_error_t _avs_net_create_tcp_socket(avs_net_socket_t **socket,
-                                       const void *socket_configuration);
-avs_error_t _avs_net_create_udp_socket(avs_net_socket_t **socket,
-                                       const void *socket_configuration);
+#include <net/socket.h>
 
-avs_error_t _avs_net_initialize_global_compat_state(void) {
-    return AVS_OK;
-}
+#include "net_impl.h"
 
 void _avs_net_cleanup_global_compat_state(void) {}
 
-typedef union {
-    struct sockaddr addr;
-#ifdef CONFIG_NET_IPV4
-    struct sockaddr_in in;
-#endif // CONFIG_NET_IPV4
-#ifdef CONFIG_NET_IPV6
-    struct sockaddr_in6 in6;
-#endif // CONFIG_NET_IPV6
-    struct sockaddr_storage storage;
-} sockaddr_union_t;
+#ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+static bool is_sockproto_encrypted(int sockproto) {
+    return sockproto != IPPROTO_TCP && sockproto != IPPROTO_UDP;
+}
+#endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
 
-typedef struct {
-    const avs_net_socket_v_table_t *operations;
-    int socktype;
-    int fd;
-    avs_time_duration_t recv_timeout;
-    uint8_t ai_family;
-    sockaddr_union_t local_addr;
-    sockaddr_union_t peer_addr;
-    char peer_hostname[256];
-    bool shut_down;
-    size_t bytes_sent;
-    size_t bytes_received;
-    avs_net_resolved_endpoint_t *preferred_endpoint;
-} net_socket_impl_t;
+#ifdef CONFIG_NRF_MODEM_LIB
+#    include <nrf_modem_at.h>
+
+static const char *const FW_VER_AT_COMMAND = "AT+CGMR";
+
+#    define MIN_MAJOR_MODEM_FW_VER (1)
+#    define MIN_MINOR_MODEM_FW_VER (3)
+#    define MIN_PATCH_MODEM_FW_VER (1)
+#    define MODEM_FW_VERSION(major, minor, patch) \
+        (10000 * (major) + 100 * (minor) + (patch))
+#endif // CONFIG_NRF_MODEM_LIB
+
+avs_error_t _avs_net_initialize_global_compat_state(void) {
+#ifdef CONFIG_NRF_MODEM_LIB
+    int major, minor, patch;
+    int result = nrf_modem_at_scanf(FW_VER_AT_COMMAND, "mfw_nrf9160_%d.%d.%d",
+                                    &major, &minor, &patch);
+    if (result != 3) {
+        avs_log(anjay, ERROR, "Failed to get modem FW version");
+        return avs_errno(AVS_EIO);
+    } else {
+        avs_log(anjay, INFO, "Modem FW version: %d.%d.%d", major, minor, patch);
+
+        if (MODEM_FW_VERSION(major, minor, patch)
+                < MODEM_FW_VERSION(MIN_MAJOR_MODEM_FW_VER,
+                                   MIN_MINOR_MODEM_FW_VER,
+                                   MIN_PATCH_MODEM_FW_VER)) {
+            avs_log(anjay, ERROR,
+                    "Modem FW version v%d.%d.%d or newer is expected. "
+                    "Please update it.",
+                    MIN_MAJOR_MODEM_FW_VER, MIN_MINOR_MODEM_FW_VER,
+                    MIN_PATCH_MODEM_FW_VER);
+            return avs_errno(AVS_EIO);
+        }
+    }
+#endif // CONFIG_NRF_MODEM_LIB
+    return AVS_OK;
+}
 
 static avs_error_t
 net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
@@ -74,7 +89,7 @@ net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
     int result = -1;
 
     if (sock->fd >= 0) {
-        hints.ai_family = sock->ai_family;
+        hints.ai_family = sock->address_family;
         if (!zsock_getaddrinfo(host, port, &hints, &addrs) && addrs) {
             result = 0;
         }
@@ -82,7 +97,7 @@ net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
 #ifdef CONFIG_NET_IPV6
         hints.ai_family = AF_INET6;
         if (!zsock_getaddrinfo(host, port, &hints, &addrs) && addrs) {
-            sock->ai_family = AF_INET6;
+            sock->address_family = AF_INET6;
             result = 0;
         }
 #endif // CONFIG_NET_IPV6
@@ -90,7 +105,7 @@ net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
         if (result) {
             hints.ai_family = AF_INET;
             if (!zsock_getaddrinfo(host, port, &hints, &addrs) && addrs) {
-                sock->ai_family = AF_INET;
+                sock->address_family = AF_INET;
                 result = 0;
             }
         }
@@ -105,9 +120,7 @@ net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
     const struct zsock_addrinfo *addr = addrs;
     if (sock->fd < 0
             && (sock->fd = zsock_socket(addrs->ai_family, addrs->ai_socktype,
-                                        addrs->ai_socktype == SOCK_DGRAM
-                                                ? IPPROTO_UDP
-                                                : IPPROTO_TCP))
+                                        sock->sockproto))
                            < 0) {
         err = avs_errno(AVS_UNKNOWN_ERROR);
     } else {
@@ -128,8 +141,15 @@ net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
             // Preferred endpoint not found, use the first one
             addr = addrs;
         }
-        if (addr->ai_addrlen > sizeof(sock->peer_addr)
-                || zsock_connect(sock->fd, addr->ai_addr, addr->ai_addrlen)) {
+#ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+        if (is_sockproto_encrypted(sock->sockproto)) {
+            err = anjay_zephyr_init_sockfd_security__(sock, host);
+        }
+#endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+        if (avs_is_ok(err)
+                && (addr->ai_addrlen > sizeof(sock->peer_addr)
+                    || zsock_connect(sock->fd, addr->ai_addr,
+                                     addr->ai_addrlen))) {
             err = avs_errno(AVS_ECONNREFUSED);
         }
         if (sock->preferred_endpoint && avs_is_ok(err)) {
@@ -287,16 +307,14 @@ net_bind(avs_net_socket_t *sock_, const char *address, const char *port) {
     if (avs_is_ok(err)) {
         if (sock->fd < 0
                 && (sock->fd = zsock_socket(addr.addr.sa_family, sock->socktype,
-                                            sock->socktype == SOCK_DGRAM
-                                                    ? IPPROTO_UDP
-                                                    : IPPROTO_TCP))
+                                            sock->sockproto))
                                < 0) {
             err = avs_errno(AVS_UNKNOWN_ERROR);
         } else if (zsock_bind(sock->fd, &addr.addr, addrlen)) {
             err = avs_errno(AVS_ECONNREFUSED);
         } else {
             sock->shut_down = false;
-            sock->ai_family = addr.addr.sa_family;
+            sock->address_family = addr.addr.sa_family;
             sock->local_addr = addr;
             memset(&sock->peer_addr, 0, sizeof(sock->peer_addr));
         }
@@ -311,6 +329,9 @@ static avs_error_t net_cleanup(avs_net_socket_t **sock_ptr) {
     avs_error_t err = AVS_OK;
     if (sock_ptr && *sock_ptr) {
         err = net_close(*sock_ptr);
+#ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+        anjay_zephyr_cleanup_security__((net_socket_impl_t *) *sock_ptr);
+#endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
         avs_free(*sock_ptr);
         *sock_ptr = NULL;
     }
@@ -423,7 +444,35 @@ static avs_error_t net_get_opt(avs_net_socket_t *sock_,
         return AVS_OK;
     case AVS_NET_SOCKET_OPT_INNER_MTU:
         out_option_value->mtu = 1464;
+#ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+        if (sock->socktype == SOCK_DGRAM
+                && is_sockproto_encrypted(sock->sockproto)) {
+            // DTLS can cause an "overhead of up to 64 bytes, which consists of
+            // 13 byte DTLS record header, 17 byte Initialization Vector, 20
+            // byte HMAC, and up to 15 byte padding."
+            // -- D.P. Acharjya, M. Kalaiselvi Geetha "Internet of Things: Novel
+            // Advances and Envisioned Applications", Springer, 2017
+            // https://books.google.pl/books?id=4UW4DgAAQBAJ&pg=PA43&lpg=PA43&dq=%2213Byte+DTLS+record+header%22&source=bl&ots=INGge-WtR6&sig=ACfU3U0zBO85Ex0L4_H4cHkxFqUhhVWcAQ&hl=pl&sa=X&ved=2ahUKEwi_9OTNucfzAhWhlIsKHT3SBnEQ6AF6BAgCEAM#v=onepage&q=%2213Byte%20DTLS%20record%20header%22&f=false
+            out_option_value->mtu -= 64;
+        }
+#endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
         return AVS_OK;
+#ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+    case AVS_NET_SOCKET_OPT_SESSION_RESUMED:
+        if (!is_sockproto_encrypted(sock->sockproto)) {
+            return avs_errno(AVS_ENOTSUP);
+        }
+        // The Zephyr socket API does not support checking whether the session
+        // has been resumed or is it a new one. Let's let the library user make
+        // the choice whether we should assume that it always succeeds or always
+        // fails.
+#    ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_ASSUME_RESUMPTION_SUCCESS
+        out_option_value->flag = true;
+#    else  // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_ASSUME_RESUMPTION_SUCCESS
+        out_option_value->flag = false;
+#    endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_ASSUME_RESUMPTION_SUCCESS
+        return AVS_OK;
+#endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
     case AVS_NET_SOCKET_OPT_BYTES_SENT:
         out_option_value->bytes_sent = sock->bytes_sent;
         return AVS_OK;
@@ -443,6 +492,11 @@ static avs_error_t net_set_opt(avs_net_socket_t *sock_,
     case AVS_NET_SOCKET_OPT_RECV_TIMEOUT:
         sock->recv_timeout = option_value.recv_timeout;
         return AVS_OK;
+#ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+    case AVS_NET_SOCKET_OPT_DANE_TLSA_ARRAY:
+        return anjay_zephyr_set_dane_tlsa_array__(
+                sock, &option_value.dane_tlsa_array);
+#endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
     default:
         return avs_errno(AVS_ENOTSUP);
     }
@@ -468,7 +522,8 @@ static const avs_net_socket_v_table_t NET_SOCKET_VTABLE = {
 static avs_error_t
 net_create_socket(avs_net_socket_t **socket_ptr,
                   const avs_net_socket_configuration_t *configuration,
-                  int socktype) {
+                  int socktype,
+                  int sockproto) {
     assert(socket_ptr);
     assert(!*socket_ptr);
     (void) configuration;
@@ -479,6 +534,7 @@ net_create_socket(avs_net_socket_t **socket_ptr,
     }
     socket->operations = &NET_SOCKET_VTABLE;
     socket->socktype = socktype;
+    socket->sockproto = sockproto;
     socket->fd = -1;
     socket->recv_timeout = avs_time_duration_from_scalar(30, AVS_TIME_S);
     *socket_ptr = (avs_net_socket_t *) socket;
@@ -489,15 +545,79 @@ avs_error_t _avs_net_create_udp_socket(avs_net_socket_t **socket_ptr,
                                        const void *configuration) {
     return net_create_socket(
             socket_ptr, (const avs_net_socket_configuration_t *) configuration,
-            SOCK_DGRAM);
+            SOCK_DGRAM, IPPROTO_UDP);
 }
 
 avs_error_t _avs_net_create_tcp_socket(avs_net_socket_t **socket_ptr,
                                        const void *configuration) {
     return net_create_socket(
             socket_ptr, (const avs_net_socket_configuration_t *) configuration,
-            SOCK_STREAM);
+            SOCK_STREAM, IPPROTO_TCP);
 }
+
+#ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
+avs_error_t _avs_net_create_ssl_socket(avs_net_socket_t **socket_ptr,
+                                       const void *configuration) {
+    const avs_net_ssl_configuration_t *config =
+            (const avs_net_ssl_configuration_t *) configuration;
+    int proto;
+    switch (config->version) {
+    case AVS_NET_SSL_VERSION_TLSv1:
+        proto = IPPROTO_TLS_1_0;
+        break;
+    case AVS_NET_SSL_VERSION_TLSv1_1:
+        proto = IPPROTO_TLS_1_1;
+        break;
+    case AVS_NET_SSL_VERSION_DEFAULT:
+    case AVS_NET_SSL_VERSION_TLSv1_2:
+        proto = IPPROTO_TLS_1_2;
+        break;
+    default:
+        return avs_errno(AVS_ENOTSUP);
+    }
+    avs_error_t err =
+            net_create_socket(socket_ptr, &config->backend_configuration,
+                              SOCK_STREAM, proto);
+    if (avs_is_ok(err)) {
+        err = anjay_zephyr_configure_security__(
+                (net_socket_impl_t *) *socket_ptr, config);
+        if (avs_is_err(err)) {
+            avs_net_socket_cleanup(socket_ptr);
+        }
+    }
+    return err;
+}
+
+avs_error_t _avs_net_create_dtls_socket(avs_net_socket_t **socket_ptr,
+                                        const void *configuration) {
+    const avs_net_ssl_configuration_t *config =
+            (const avs_net_ssl_configuration_t *) configuration;
+    int proto;
+    switch (config->version) {
+    case AVS_NET_SSL_VERSION_TLSv1:
+    case AVS_NET_SSL_VERSION_TLSv1_1:
+        proto = IPPROTO_DTLS_1_0;
+        break;
+    case AVS_NET_SSL_VERSION_DEFAULT:
+    case AVS_NET_SSL_VERSION_TLSv1_2:
+        proto = IPPROTO_DTLS_1_2;
+        break;
+    default:
+        return avs_errno(AVS_ENOTSUP);
+    }
+    avs_error_t err =
+            net_create_socket(socket_ptr, &config->backend_configuration,
+                              SOCK_DGRAM, proto);
+    if (avs_is_ok(err)) {
+        err = anjay_zephyr_configure_security__(
+                (net_socket_impl_t *) *socket_ptr, config);
+        if (avs_is_err(err)) {
+            avs_net_socket_cleanup(socket_ptr);
+        }
+    }
+    return err;
+}
+#endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
 
 avs_error_t
 avs_net_resolved_endpoint_get_host_port(const avs_net_resolved_endpoint_t *endp,

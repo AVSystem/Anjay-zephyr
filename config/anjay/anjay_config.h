@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -513,6 +513,14 @@
 #endif // CONFIG_ANJAY_WITH_MODULE_FW_UPDATE
 
 /**
+ * Enables ipso_objects module (generic implementation of the following kinds of
+ * the basic sensor and three axis sensor IPSO objects).
+ */
+#ifdef CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS
+#    define ANJAY_WITH_MODULE_IPSO_OBJECTS
+#endif // CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS
+
+/**
  * Enable at_sms module (implementation of an SMS driver for AT modem devices).
  *
  * Requires <c>ANJAY_WITH_SMS</c> to be enabled and the operating system to
@@ -563,15 +571,6 @@
 #ifdef CONFIG_ANJAY_WITH_MODULE_OSCORE
 #    define ANJAY_WITH_MODULE_OSCORE
 #endif // CONFIG_ANJAY_WITH_MODULE_OSCORE
-
-/**
- * Enables generic implementation of the following kinds of IPSO objects:
- *  - basic sensor
- *  - three axis sensor
- */
-#ifdef CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS
-#    define ANJAY_WITH_MODULE_IPSO_OBJECTS
-#endif // CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS
 /**@}*/
 
 #endif // ANJAY_CONFIG_H

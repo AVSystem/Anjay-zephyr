@@ -1,4 +1,4 @@
-# Copyright 2020-2021 AVSystem <avsystem@avsystem.com>
+# Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,9 +19,54 @@ config ANJAY
 
 if ANJAY
 
-config ANJAY_COMPAT_MBEDTLS
-    bool "Enable Mbedtls compatibility implementation"
-    depends on MBEDTLS
+choice ANJAY_COMPAT_SECURITY
+    prompt "Enable support for encrypted communication"
+    default ANJAY_COMPAT_MBEDTLS if ANJAY_COMPAT_NET
+    optional
+
+    config ANJAY_COMPAT_MBEDTLS
+        bool "Use the Mbed TLS backend"
+        select MBEDTLS
+        select MBEDTLS_ENTROPY_ENABLED
+        imply MBEDTLS_DTLS
+        imply MBEDTLS_KEY_EXCHANGE_PSK_ENABLED
+
+    menuconfig ANJAY_COMPAT_ZEPHYR_TLS
+        bool "Use Zephyr TLS sockets"
+        select MODEM_KEY_MGMT if NRF_MODEM_LIB
+        select TLS_CREDENTIALS if (!NRF_MODEM_LIB)
+        select NET_SOCKETS_SOCKOPT_TLS if (!NRF_MODEM_LIB)
+        imply NET_SOCKETS_ENABLE_DTLS if (!NRF_MODEM_LIB)
+
+        config ANJAY_COMPAT_ZEPHYR_TLS_EPHEMERAL_SEC_TAG_BASE
+            int "Lowest security tag number to use for Anjay's ephemeral credentials"
+            default 2652900
+            range 0 2147483647
+            depends on ANJAY_COMPAT_ZEPHYR_TLS
+
+        config ANJAY_COMPAT_ZEPHYR_TLS_EPHEMERAL_SEC_TAG_COUNT
+            int "Numer of security tags to reserve for Anjay's ephemeral credentials"
+            default 100
+            range 1 2147483647
+            depends on ANJAY_COMPAT_ZEPHYR_TLS
+
+        config ANJAY_COMPAT_ZEPHYR_TLS_ASSUME_RESUMPTION_SUCCESS
+            bool "Assume that (D)TLS session resumption always succeeds"
+            depends on ANJAY_COMPAT_ZEPHYR_TLS
+            depends on NRF_MODEM_LIB
+            default y
+            help
+              nRF sockets do not provide an API that would allow to check
+              whether a full (D)TLS handshake has been performed, or has a
+              previously existing session been resumed.
+
+              Enabling this option will prevent the LwM2M Register operation
+              from being performed after each handshake; however, if the session
+              has indeed not been resumed, messages (notifications, Send
+              messages) sent until the device actually re-registers may not be
+              properly processed by the LwM2M server.
+
+endchoice
 
 config ANJAY_COMPAT_NET
     bool "Enable Net compatibility implementation"
@@ -29,16 +74,36 @@ config ANJAY_COMPAT_NET
 config ANJAY_COMPAT_TIME
     bool "Enable Time compatibility implementation"
 
-config ANJAY_WITH_LOGS
+menuconfig ANJAY_WITH_LOGS
     bool "Enable logging in Anjay."
     default y
+    depends on LOG
+    depends on LOG2 || !LOG_MODE_DEFERRED
     help
       If this flag is disabled, no logging is compiled into the binary at all.
 
-config ANJAY_WITH_TRACE_LOGS
-    bool "Enable TRACE-level logs in Anjay."
-    default y
-    depends on ANJAY_WITH_LOGS
+    config ANJAY_WITH_TRACE_LOGS
+        bool "Enable TRACE-level logs in Anjay."
+        default y
+        depends on ANJAY_WITH_LOGS
+
+    config ANJAY_WITH_MICRO_LOGS
+        bool "Enable the \"micro logs\" feature."
+        default n
+        help
+          Replaces all occurrences of the <c>AVS_DISPOSABLE_LOG()</c> macro with single
+          space strings. This is intended to reduce the size of the compiled code, by
+          stripping it of almost all log string data.
+
+          Note that this setting will propagate both to avs_commons components
+          themselves (as all its internal logs make use of <c>AVS_DISPOSABLE_LOG()</c>)
+          and the user code that uses it.
+        depends on ANJAY_WITH_LOGS
+
+    module = ANJAY
+    module-dep = ANJAY_WITH_LOGS
+    module-str = Log level for Anjay
+    source "${ZEPHYR_BASE}/subsys/net/Kconfig.template.log_config.net"
 
 config ANJAY_WITH_ACCESS_CONTROL
     bool "Enable core support for Access Control mechanisms."
