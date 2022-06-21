@@ -27,6 +27,7 @@
 #include <random/rand32.h>
 
 #include <avsystem/commons/avs_base64.h>
+#include <avsystem/commons/avs_crypto_psk.h>
 #include <avsystem/commons/avs_errno_map.h>
 #include <avsystem/commons/avs_stream_membuf.h>
 #include <avsystem/commons/avs_utils.h>
@@ -424,40 +425,6 @@ static void security_credential_delete_all_unlocked(
     mark_tag_as_unused_unlocked(tag);
 }
 
-static avs_error_t
-load_psk(anjay_zephyr_security_credential_transaction_state_t *transaction,
-         void **out_tag_list,
-         size_t *out_tag_list_size,
-         const avs_net_psk_info_t *info) {
-    k_mutex_lock(&USED_SEC_TAGS_MAP_MUTEX, K_FOREVER);
-    anjay_zephyr_sec_tag_t tag;
-    avs_error_t err = find_free_security_tag_unlocked(&tag);
-    if (avs_is_ok(err)) {
-        security_credential_delete_all_unlocked(transaction, tag);
-        if (avs_is_ok((err = security_credential_set(
-                               transaction, tag, ANJAY_ZEPHYR_TLS_CRED_PSK,
-                               info->psk, info->psk_size)))
-                && avs_is_ok((err = security_credential_set(
-                                      transaction, tag,
-                                      ANJAY_ZEPHYR_TLS_CRED_PSK_ID,
-                                      info->identity, info->identity_size)))) {
-            if (!(*out_tag_list = avs_malloc(sizeof(anjay_zephyr_sec_tag_t)))) {
-                err = avs_errno(AVS_ENOMEM);
-            } else {
-                memcpy(*out_tag_list, &tag, sizeof(tag));
-                *out_tag_list_size = sizeof(tag);
-            }
-        }
-        if (avs_is_err(err)) {
-            security_credential_delete_all_unlocked(transaction, tag);
-        } else {
-            mark_tag_as_used_unlocked(tag);
-        }
-    }
-    k_mutex_unlock(&USED_SEC_TAGS_MAP_MUTEX);
-    return err;
-}
-
 static avs_error_t load_credential_unlocked(
         anjay_zephyr_security_credential_transaction_state_t *transaction,
         avs_stream_t *out_tag_list_membuf,
@@ -560,31 +527,47 @@ static avs_error_t load_credential_unlocked(
     }
 }
 
-static avs_error_t load_certs_into_membuf_unlocked(
-        anjay_zephyr_security_credential_transaction_state_t *transaction,
-        avs_stream_t *out_tag_list_membuf,
-        const avs_net_certificate_info_t *info) {
-    avs_error_t err = AVS_OK;
-    if (info->server_cert_validation) {
-        err = load_credential_unlocked(transaction, out_tag_list_membuf,
-                                       SEC_TAG_INVALID, NULL,
-                                       ANJAY_ZEPHYR_TLS_CRED_CA_CERT,
-                                       &info->trusted_certs.desc);
-    }
-    anjay_zephyr_sec_tag_t own_cert_key_tag = SEC_TAG_INVALID;
+static avs_error_t apply_membuf(net_socket_impl_t *socket,
+                                avs_stream_t **membuf_ptr,
+                                avs_error_t err) {
     if (avs_is_ok(err)) {
-        err = load_credential_unlocked(transaction, out_tag_list_membuf,
-                                       SEC_TAG_INVALID, &own_cert_key_tag,
-                                       ANJAY_ZEPHYR_TLS_CRED_SERVER_CERT,
-                                       &info->client_cert.desc);
+        void *tag_list = NULL;
+        size_t tag_list_size;
+        err = avs_stream_membuf_take_ownership(*membuf_ptr, &tag_list,
+                                               &tag_list_size);
+        if (avs_is_ok(err)) {
+            assert(((intptr_t) tag_list) % AVS_ALIGNOF(anjay_zephyr_sec_tag_t)
+                   == 0);
+            socket->sec_tags = (anjay_zephyr_sec_tag_t *) tag_list;
+            socket->sec_tags_size = tag_list_size;
+        }
     }
-    if (avs_is_ok(err)) {
-        err = load_credential_unlocked(
-                transaction, out_tag_list_membuf, own_cert_key_tag,
-                &(anjay_zephyr_sec_tag_t) { SEC_TAG_INVALID },
-                ANJAY_ZEPHYR_TLS_CRED_PRIVATE_KEY, &info->client_key.desc);
-    }
+    avs_stream_cleanup(membuf_ptr);
     return err;
+}
+
+static avs_error_t
+load_psk(anjay_zephyr_security_credential_transaction_state_t *transaction,
+         net_socket_impl_t *socket,
+         const avs_net_psk_info_t *info) {
+    avs_stream_t *membuf = avs_stream_membuf_create();
+    if (!membuf) {
+        return avs_errno(AVS_ENOMEM);
+    }
+    k_mutex_lock(&USED_SEC_TAGS_MAP_MUTEX, K_FOREVER);
+    anjay_zephyr_sec_tag_t tag = SEC_TAG_INVALID;
+    avs_error_t err;
+    (void) (avs_is_err((err = load_credential_unlocked(
+                                transaction, membuf, SEC_TAG_INVALID, &tag,
+                                ANJAY_ZEPHYR_TLS_CRED_PSK, &info->key.desc)))
+            || avs_is_err(
+                       (err = load_credential_unlocked(
+                                transaction, membuf, tag,
+                                &(anjay_zephyr_sec_tag_t) { SEC_TAG_INVALID },
+                                ANJAY_ZEPHYR_TLS_CRED_PSK_ID,
+                                &info->identity.desc))));
+    k_mutex_unlock(&USED_SEC_TAGS_MAP_MUTEX);
+    return apply_membuf(socket, &membuf, err);
 }
 
 static avs_error_t
@@ -605,22 +588,27 @@ load_certs(anjay_zephyr_security_credential_transaction_state_t *transaction,
         return avs_errno(AVS_ENOMEM);
     }
     k_mutex_lock(&USED_SEC_TAGS_MAP_MUTEX, K_FOREVER);
-    avs_error_t err =
-            load_certs_into_membuf_unlocked(transaction, membuf, info);
-    k_mutex_unlock(&USED_SEC_TAGS_MAP_MUTEX);
-    if (avs_is_ok(err)) {
-        void *tag_list = NULL;
-        size_t tag_list_size;
-        err = avs_stream_membuf_take_ownership(membuf, &tag_list,
-                                               &tag_list_size);
-        if (avs_is_ok(err)) {
-            assert(((intptr_t) tag_list) % AVS_ALIGNOF(anjay_zephyr_sec_tag_t)
-                   == 0);
-            socket->sec_tags = (anjay_zephyr_sec_tag_t *) tag_list;
-            socket->sec_tags_size = tag_list_size;
-        }
+    avs_error_t err = AVS_OK;
+    if (info->server_cert_validation) {
+        err = load_credential_unlocked(transaction, membuf, SEC_TAG_INVALID,
+                                       NULL, ANJAY_ZEPHYR_TLS_CRED_CA_CERT,
+                                       &info->trusted_certs.desc);
     }
-    avs_stream_cleanup(&membuf);
+    anjay_zephyr_sec_tag_t own_cert_key_tag = SEC_TAG_INVALID;
+    if (avs_is_ok(err)) {
+        err = load_credential_unlocked(transaction, membuf, SEC_TAG_INVALID,
+                                       &own_cert_key_tag,
+                                       ANJAY_ZEPHYR_TLS_CRED_SERVER_CERT,
+                                       &info->client_cert.desc);
+    }
+    if (avs_is_ok(err)) {
+        err = load_credential_unlocked(
+                transaction, membuf, own_cert_key_tag,
+                &(anjay_zephyr_sec_tag_t) { SEC_TAG_INVALID },
+                ANJAY_ZEPHYR_TLS_CRED_PRIVATE_KEY, &info->client_key.desc);
+    }
+    k_mutex_unlock(&USED_SEC_TAGS_MAP_MUTEX);
+    err = apply_membuf(socket, &membuf, err);
     socket->server_cert_validation = info->server_cert_validation;
     socket->dane = info->dane;
     return err;
@@ -638,8 +626,7 @@ static avs_error_t load_credentials(net_socket_impl_t *socket,
         err = load_certs(&transaction_state, socket, &info->data.cert);
         break;
     case AVS_NET_SECURITY_PSK:
-        err = load_psk(&transaction_state, &socket->sec_tags,
-                       &socket->sec_tags_size, &info->data.psk);
+        err = load_psk(&transaction_state, socket, &info->data.psk);
         break;
     default:
         AVS_UNREACHABLE("invalid enum value");
@@ -899,7 +886,12 @@ avs_error_t anjay_zephyr_init_sockfd_security__(net_socket_impl_t *socket,
 #ifdef TLS_SESSION_CACHE
     if ((result = zsock_setsockopt(socket->fd, SOL_TLS, TLS_SESSION_CACHE,
                                    &(nrf_sec_session_cache_t) {
-                                           TLS_SESSION_CACHE_ENABLED },
+#    ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE
+                                           TLS_SESSION_CACHE_ENABLED
+#    else  // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE
+                                           TLS_SESSION_CACHE_DISABLED
+#    endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE
+                                   },
                                    sizeof(nrf_sec_session_cache_t)))) {
         return avs_errno(avs_map_errno(-result));
     }
@@ -931,4 +923,111 @@ void anjay_zephyr_cleanup_security__(net_socket_impl_t *socket) {
     avs_free(socket->ciphersuites);
     socket->ciphersuites = NULL;
     socket->ciphersuites_size = 0;
+}
+
+avs_error_t
+avs_crypto_psk_engine_key_store(const char *query,
+                                const avs_crypto_psk_key_info_t *key_info) {
+    if (key_info->desc.source != AVS_CRYPTO_DATA_SOURCE_BUFFER
+            || key_info->desc.info.buffer.password) {
+        return avs_errno(AVS_ENOTSUP);
+    }
+
+    char *endptr;
+    errno = 0;
+    long long tag = strtoll(query, &endptr, 0);
+    if (errno || !endptr || *endptr) {
+        return avs_errno(AVS_EINVAL);
+    }
+
+    anjay_zephyr_security_credential_transaction_state_t transaction;
+    avs_error_t err = security_credential_transaction_begin(&transaction);
+    if (avs_is_err(err)) {
+        return err;
+    }
+
+    err = security_credential_set(&transaction, tag, ANJAY_ZEPHYR_TLS_CRED_PSK,
+                                  key_info->desc.info.buffer.buffer,
+                                  key_info->desc.info.buffer.buffer_size);
+
+    avs_error_t transaction_err =
+            security_credential_transaction_finish(&transaction);
+    if (avs_is_ok(err) && avs_is_err(transaction_err)) {
+        err = transaction_err;
+    }
+
+    return err;
+}
+
+avs_error_t avs_crypto_psk_engine_key_rm(const char *query) {
+    char *endptr;
+    errno = 0;
+    long long tag = strtoll(query, &endptr, 0);
+    if (errno || !endptr || *endptr) {
+        return avs_errno(AVS_EINVAL);
+    }
+
+    anjay_zephyr_security_credential_transaction_state_t transaction;
+    avs_error_t err = security_credential_transaction_begin(&transaction);
+    if (avs_is_err(err)) {
+        return err;
+    }
+
+    security_credential_delete(&transaction, tag, ANJAY_ZEPHYR_TLS_CRED_PSK);
+
+    return security_credential_transaction_finish(&transaction);
+}
+
+avs_error_t avs_crypto_psk_engine_identity_store(
+        const char *query,
+        const avs_crypto_psk_identity_info_t *identity_info) {
+    if (identity_info->desc.source != AVS_CRYPTO_DATA_SOURCE_BUFFER
+            || identity_info->desc.info.buffer.password) {
+        return avs_errno(AVS_ENOTSUP);
+    }
+
+    char *endptr;
+    errno = 0;
+    long long tag = strtoll(query, &endptr, 0);
+    if (errno || !endptr || *endptr) {
+        return avs_errno(AVS_EINVAL);
+    }
+
+    anjay_zephyr_security_credential_transaction_state_t transaction;
+    avs_error_t err = security_credential_transaction_begin(&transaction);
+    if (avs_is_err(err)) {
+        return err;
+    }
+
+    err = security_credential_set(&transaction, tag,
+                                  ANJAY_ZEPHYR_TLS_CRED_PSK_ID,
+                                  identity_info->desc.info.buffer.buffer,
+                                  identity_info->desc.info.buffer.buffer_size);
+
+    avs_error_t transaction_err =
+            security_credential_transaction_finish(&transaction);
+    if (avs_is_ok(err) && avs_is_err(transaction_err)) {
+        err = transaction_err;
+    }
+
+    return err;
+}
+
+avs_error_t avs_crypto_psk_engine_identity_rm(const char *query) {
+    char *endptr;
+    errno = 0;
+    long long tag = strtoll(query, &endptr, 0);
+    if (errno || !endptr || *endptr) {
+        return avs_errno(AVS_EINVAL);
+    }
+
+    anjay_zephyr_security_credential_transaction_state_t transaction;
+    avs_error_t err = security_credential_transaction_begin(&transaction);
+    if (avs_is_err(err)) {
+        return err;
+    }
+
+    security_credential_delete(&transaction, tag, ANJAY_ZEPHYR_TLS_CRED_PSK_ID);
+
+    return security_credential_transaction_finish(&transaction);
 }

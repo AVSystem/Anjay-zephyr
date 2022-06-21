@@ -38,6 +38,11 @@ choice ANJAY_COMPAT_SECURITY
         select NET_SOCKETS_SOCKOPT_TLS if (!NRF_MODEM_LIB)
         imply NET_SOCKETS_ENABLE_DTLS if (!NRF_MODEM_LIB)
 
+        config ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE
+            bool "Enable Zephyr TLS session cache."
+            default y
+            depends on ANJAY_COMPAT_ZEPHYR_TLS
+
         config ANJAY_COMPAT_ZEPHYR_TLS_EPHEMERAL_SEC_TAG_BASE
             int "Lowest security tag number to use for Anjay's ephemeral credentials"
             default 2652900
@@ -53,6 +58,7 @@ choice ANJAY_COMPAT_SECURITY
         config ANJAY_COMPAT_ZEPHYR_TLS_ASSUME_RESUMPTION_SUCCESS
             bool "Assume that (D)TLS session resumption always succeeds"
             depends on ANJAY_COMPAT_ZEPHYR_TLS
+            depends on ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE
             depends on NRF_MODEM_LIB
             default y
             help
@@ -158,6 +164,17 @@ config ANJAY_WITH_EVENT_LOOP
     bool "Enable default implementation of the event loop."
     default y
 
+config ANJAY_WITH_LWM2M11
+    bool "Enable support for features new to LwM2M protocol version 1.1."
+    default n
+
+config ANJAY_WITH_SEND
+    bool "Enable support for the LwM2M Send operation."
+    default n
+    depends on ANJAY_WITH_LWM2M11
+    help
+      Requires either SENML_JSON or CBOR format to be enabled
+
 
 config ANJAY_WITH_LEGACY_CONTENT_FORMAT_SUPPORT
     bool "Enable support for legacy CoAP Content-Format values"
@@ -188,6 +205,16 @@ config ANJAY_WITHOUT_IP_STICKINESS
     help
       "IP stickiness" is a preference of the same IP address when reconnecting to
       a server using a domain name.
+
+config ANJAY_WITH_SENML_JSON
+    bool "Enable support for SenML JSON format, as specified in LwM2M TS 1.1."
+    default n
+    depends on ANJAY_WITH_LWM2M11
+
+config ANJAY_WITH_CBOR
+    bool "Enable support for CBOR and SenML CBOR formats, as specified in LwM2M TS 1.1."
+    default n
+    depends on ANJAY_WITH_LWM2M11
 
 
 config ANJAY_WITH_CON_ATTR
@@ -239,7 +266,7 @@ config ANJAY_DTLS_SESSION_BUFFER_SIZE
       Size of buffer allocated for storing DTLS session state when connection is
       not in use (e.g. during queue mode operation).
 
-config ANJAY_WITH_MODULE_ATTR_STORAGE
+config ANJAY_WITH_ATTR_STORAGE
     bool "Enable attr_storage module"
     default y
 
@@ -265,6 +292,11 @@ config ANJAY_WITH_MODULE_FW_UPDATE
 config ANJAY_WITH_MODULE_IPSO_OBJECTS
     bool "Enable IPSO objects implementation"
     default y
+
+config ANJAY_WITH_MODULE_FACTORY_PROVISIONING
+    bool "Enable factory provisioning module"
+    default n
+    depends on ANJAY_WITH_CBOR
 
 endif
 

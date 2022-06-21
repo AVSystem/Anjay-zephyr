@@ -38,42 +38,52 @@ static bool is_sockproto_encrypted(int sockproto) {
 }
 #endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS
 
-#ifdef CONFIG_NRF_MODEM_LIB
-#    include <nrf_modem_at.h>
-
-static const char *const FW_VER_AT_COMMAND = "AT+CGMR";
+#if defined(CONFIG_NRF_MODEM_LIB) && defined(CONFIG_MODEM_INFO)
+#    include <modem/modem_info.h>
 
 #    define MIN_MAJOR_MODEM_FW_VER (1)
 #    define MIN_MINOR_MODEM_FW_VER (3)
 #    define MIN_PATCH_MODEM_FW_VER (1)
 #    define MODEM_FW_VERSION(major, minor, patch) \
         (10000 * (major) + 100 * (minor) + (patch))
-#endif // CONFIG_NRF_MODEM_LIB
+#endif // defined(CONFIG_NRF_MODEM_LIB) && defined(CONFIG_MODEM_INFO)
 
 avs_error_t _avs_net_initialize_global_compat_state(void) {
-#ifdef CONFIG_NRF_MODEM_LIB
+#if defined(CONFIG_NRF_MODEM_LIB) && defined(CONFIG_MODEM_INFO)
     int major, minor, patch;
-    int result = nrf_modem_at_scanf(FW_VER_AT_COMMAND, "mfw_nrf9160_%d.%d.%d",
-                                    &major, &minor, &patch);
+    char buf[MODEM_INFO_MAX_RESPONSE_SIZE];
+    int err, result;
+    err = modem_info_init();
+    if (err) {
+        avs_log(anjay, ERROR, "Failed to initialize Modem Info module");
+        return avs_errno(AVS_EIO);
+    }
+
+    err = modem_info_string_get(MODEM_INFO_FW_VERSION, buf, sizeof(buf));
+    if (err < 0) {
+        avs_log(anjay, ERROR, "Failed to get modem FW version");
+        return avs_errno(AVS_EIO);
+    }
+
+    result = sscanf(buf, "mfw_nrf9160_%d.%d.%d", &major, &minor, &patch);
     if (result != 3) {
         avs_log(anjay, ERROR, "Failed to get modem FW version");
         return avs_errno(AVS_EIO);
-    } else {
-        avs_log(anjay, INFO, "Modem FW version: %d.%d.%d", major, minor, patch);
-
-        if (MODEM_FW_VERSION(major, minor, patch)
-                < MODEM_FW_VERSION(MIN_MAJOR_MODEM_FW_VER,
-                                   MIN_MINOR_MODEM_FW_VER,
-                                   MIN_PATCH_MODEM_FW_VER)) {
-            avs_log(anjay, ERROR,
-                    "Modem FW version v%d.%d.%d or newer is expected. "
-                    "Please update it.",
-                    MIN_MAJOR_MODEM_FW_VER, MIN_MINOR_MODEM_FW_VER,
-                    MIN_PATCH_MODEM_FW_VER);
-            return avs_errno(AVS_EIO);
-        }
     }
-#endif // CONFIG_NRF_MODEM_LIB
+
+    avs_log(anjay, INFO, "Modem FW version: %d.%d.%d", major, minor, patch);
+    if (MODEM_FW_VERSION(major, minor, patch)
+            < MODEM_FW_VERSION(MIN_MAJOR_MODEM_FW_VER,
+                               MIN_MINOR_MODEM_FW_VER,
+                               MIN_PATCH_MODEM_FW_VER)) {
+        avs_log(anjay, ERROR,
+                "Modem FW version v%d.%d.%d or newer is expected. "
+                "Please update it.",
+                MIN_MAJOR_MODEM_FW_VER, MIN_MINOR_MODEM_FW_VER,
+                MIN_PATCH_MODEM_FW_VER);
+        return avs_errno(AVS_EIO);
+    }
+#endif // defined(CONFIG_NRF_MODEM_LIB) && defined(CONFIG_MODEM_INFO)
     return AVS_OK;
 }
 
