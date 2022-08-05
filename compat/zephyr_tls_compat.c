@@ -52,6 +52,7 @@ void _avs_net_cleanup_global_ssl_state(void) {}
 typedef nrf_sec_tag_t anjay_zephyr_sec_tag_t;
 typedef enum modem_key_mgmt_cred_type anjay_zephyr_tls_credential_type_t;
 typedef nrf_sec_peer_verify_t anjay_zephyr_sec_peer_verify_t;
+typedef nrf_sec_session_cache_t anjay_zephyr_sec_session_cache_t;
 
 #    define ANJAY_ZEPHYR_TLS_CRED_CA_CERT MODEM_KEY_MGMT_CRED_TYPE_CA_CHAIN
 #    define ANJAY_ZEPHYR_TLS_CRED_SERVER_CERT \
@@ -248,6 +249,7 @@ static void security_credential_delete(
 typedef sec_tag_t anjay_zephyr_sec_tag_t;
 typedef enum tls_credential_type anjay_zephyr_tls_credential_type_t;
 typedef int anjay_zephyr_sec_peer_verify_t;
+typedef int anjay_zephyr_sec_session_cache_t;
 
 #    define ANJAY_ZEPHYR_TLS_CRED_CA_CERT TLS_CREDENTIAL_CA_CERTIFICATE
 #    define ANJAY_ZEPHYR_TLS_CRED_SERVER_CERT TLS_CREDENTIAL_SERVER_CERTIFICATE
@@ -885,14 +887,14 @@ avs_error_t anjay_zephyr_init_sockfd_security__(net_socket_impl_t *socket,
     }
 #ifdef TLS_SESSION_CACHE
     if ((result = zsock_setsockopt(socket->fd, SOL_TLS, TLS_SESSION_CACHE,
-                                   &(nrf_sec_session_cache_t) {
+                                   &(anjay_zephyr_sec_session_cache_t) {
 #    ifdef CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE
                                            TLS_SESSION_CACHE_ENABLED
 #    else  // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE
                                            TLS_SESSION_CACHE_DISABLED
 #    endif // CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE
                                    },
-                                   sizeof(nrf_sec_session_cache_t)))) {
+                                   sizeof(anjay_zephyr_sec_session_cache_t)))) {
         return avs_errno(avs_map_errno(-result));
     }
 #endif // TLS_SESSION_CACHE

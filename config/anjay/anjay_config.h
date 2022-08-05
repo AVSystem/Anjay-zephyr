@@ -601,6 +601,12 @@
 #endif // CONFIG_ANJAY_WITH_MODULE_FACTORY_PROVISIONING
 
 /**
+ * Enable factory provisioning module. Data provided during provisioning uses
+ * SenML CBOR format.
+ */
+/* #undef ANJAY_WITH_MODULE_FACTORY_PROVISIONING */
+
+/**
  * Enable oscore module (implementation of the OSCORE object).
  *
  * IMPORTANT: Only available as part of the OSCORE commercial feature. Ignored

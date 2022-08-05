@@ -84,7 +84,6 @@ menuconfig ANJAY_WITH_LOGS
     bool "Enable logging in Anjay."
     default y
     depends on LOG
-    depends on LOG2 || !LOG_MODE_DEFERRED
     help
       If this flag is disabled, no logging is compiled into the binary at all.
 

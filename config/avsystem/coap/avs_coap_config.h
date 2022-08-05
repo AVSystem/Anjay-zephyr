@@ -45,8 +45,7 @@
  * - @c avs_stream
  * - @c avs_utils
  * - @c avs_log (if @c WITH_AVS_COAP_LOGS is enabled)
- * - @c avs_persistence and @c avs_rbtree (if
- *   @c WITH_AVS_COAP_OBSERVE_PERSISTENCE is enabled)
+ * - @c avs_persistence (if @c WITH_AVS_COAP_OBSERVE_PERSISTENCE is enabled)
  * - @c avs_crypto (if @c WITH_AVS_COAP_OSCORE is enabled)
  *
  * In the repository, this file is provided as <c>avs_coap_config.h.in</c>,
@@ -95,15 +94,12 @@
  * Enable support for UDP transport.
  *
  * NOTE: Enabling at least one transport is necessary for the library to be
- * useful. UDP is the only transport available in the open source version.
+ * useful.
  */
 #define WITH_AVS_COAP_UDP
 
 /**
  * Enable support for TCP transport (RFC 8323).
- *
- * IMPORTANT: Only available in the commercial version. Ignored in the open
- * source version.
  *
  * NOTE: Enabling at least one transport is necessary for the library to be
  * useful.
@@ -113,7 +109,7 @@
 /**
  * Enable support for OSCORE (RFC 8613).
  *
- * IMPORTANT: Only available in the commercial version. Ignored in the open
+ * IMPORTANT: Only available with the OSCORE feature. Ignored in the open
  * source version.
  */
 #ifdef CONFIG_ANJAY_WITH_COAP_OSCORE
@@ -126,7 +122,7 @@
  *
  * Only meaningful if <c>WITH_AVS_COAP_OSCORE</c> is enabled.
  *
- * IMPORTANT: Only available in the commercial version. Ignored in the open
+ * IMPORTANT: Only available with the OSCORE feature. Ignored in the open
  * source version.
  */
 /* #undef WITH_AVS_COAP_OSCORE_DRAFT_8 */

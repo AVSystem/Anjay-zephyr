@@ -1,22 +1,47 @@
 # Changelog
 
+## 3.1.1 (Aug 5th, 2022)
+
+### Improvements
+- Updated Anjay to version 3.1.1
+- Updated to Zephyr 3.x
+
+## 3.0.0 (Jun 21st, 2022)
+
+### Features
+- Added modem PSK credentials store/remove options
+- Added configurability of ANJAY_WITH_MODULE_FACTORY_PROVISIONING
+
+### Improvements
+- Updated Anjay to version 3.0.0
+- Use nRF Modem library to retrieve modem firmware version
+
 ## 2.14.1 (Mar 24th, 2022)
-- Updated Anjay to version 2.14.1
+
+### Features
 - Added support for Zephyr (and nRF Connect SDK) offloaded (D)TLS sockets
+
+### Improvements
+- Updated Anjay to version 2.14.1
 - Migrated logging to use the native Zephyr logger
 - Moved Mbed TLS entropy handling to this module
 - Updated support for newer versions of Mbed TLS, Zephyr and nRF Connect SDK
 
 ## 2.14.0 (Oct 8th, 2021)
+
+### Improvements
 - Updated Anjay to version 2.14.0
 - Added native Zephyr threading integration
 
 ## 2.13.0 (Jul 30th, 2021)
+
+### Improvements
 - Updated Anjay to version 2.13.0
 - Improved socket handling layer
 - Moved Anjay configuration to KConfig
 - Compatible with Zephyr 2.6.0
 
 ## 2.11.1 (Jun 9th, 2021)
-- Initial release
-- Using Anjay 2.11.1
+
+### Features
+- Initial release using Anjay 2.11.1

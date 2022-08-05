@@ -18,6 +18,7 @@
 #define COMPAT_H
 
 #include <net/socket.h>
+#include <posix/time.h>
 
 typedef int sockfd_t;
 

@@ -147,7 +147,9 @@
  * If defined, custom implementation of conversion is used in
  * @c AVS_UINT64_AS_STRING instead of using @c snprintf .
  */
-#define AVS_COMMONS_WITHOUT_64BIT_FORMAT_SPECIFIERS
+#if !defined(CONFIG_NEWLIB_LIBC) || defined(CONFIG_NEWLIB_LIBC_NANO)
+#    define AVS_COMMONS_WITHOUT_64BIT_FORMAT_SPECIFIERS
+#endif // !defined(CONFIG_NEWLIB_LIBC) || defined(CONFIG_NEWLIB_LIBC_NANO)
 
 /**
  * Set if printf implementation doesn't support floating-point numbers.
@@ -160,7 +162,9 @@
  * not intended to be 100% accurate. Rounding errors may occur - according to
  * empirical checks, they show up around the 16th significant decimal digit.
  */
-#define AVS_COMMONS_WITHOUT_FLOAT_FORMAT_SPECIFIERS
+#ifndef CONFIG_NEWLIB_LIBC_FLOAT_PRINTF
+#    define AVS_COMMONS_WITHOUT_FLOAT_FORMAT_SPECIFIERS
+#endif // CONFIG_NEWLIB_LIBC_FLOAT_PRINTF
 /**@}*/
 
 /**
@@ -198,6 +202,7 @@
 #define AVS_COMMONS_WITH_AVS_LIST
 #define AVS_COMMONS_WITH_AVS_LOG
 #define AVS_COMMONS_WITH_AVS_NET
+
 #if defined(CONFIG_ANJAY_WITH_CORE_PERSISTENCE)    \
         || defined(CONFIG_ANJAY_WITH_ATTR_STORAGE) \
         || defined(CONFIG_ANJAY_WITH_MODULE_BOOTSTRAPPER)
@@ -206,9 +211,11 @@
        // defined(CONFIG_ANJAY_WITH_ATTR_STORAGE)     ||
        // defined(CONFIG_ANJAY_WITH_MODULE_BOOTSTRAPPER)
 
+/* #undef AVS_COMMONS_WITH_AVS_RBTREE */
+
 #if defined(CONFIG_ANJAY_WITH_OBSERVE) \
         || defined(CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL)
-#    define AVS_COMMONS_WITH_AVS_RBTREE
+#    define AVS_COMMONS_WITH_AVS_SORTED_SET
 #endif // defined(CONFIG_ANJAY_WITH_OBSERVE)
        // || defined(CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL)
 
@@ -376,11 +383,11 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
  *
  * Requires @ref AVS_COMMONS_WITH_AVS_CRYPTO_PKI to be enabled.
  *
- * An actual implementation is required to use this feature. In the commercial
- * version, you may use one of the default ones (see
- * @ref AVS_COMMONS_WITH_MBEDTLS_PKCS11_ENGINE,
+ * An actual implementation is required to use this feature. You may provide
+ * your own, or use one of the default ones that come with the HSM engine
+ * commercial feature (see @ref AVS_COMMONS_WITH_MBEDTLS_PKCS11_ENGINE,
  * @ref AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE and
- * @ref AVS_COMMONS_WITH_OPENSSL_PKCS11_ENGINE) or provide your own.
+ * @ref AVS_COMMONS_WITH_OPENSSL_PKCS11_ENGINE).
  *
  * The functions that need to be provided in case of a custom implementation:
  * - <c>avs_crypto_pki_engine_certificate_rm()</c>
@@ -411,9 +418,9 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
  *
  * Requires @ref AVS_COMMONS_WITH_AVS_CRYPTO_PKI to be enabled.
  *
- * An actual implementation is required to use this feature. In the commercial
- * version, you may use the default PSA-based one (see
- * @ref AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE) or provide your own.
+ * An actual implementation is required to use this feature. You may provide
+ * your own, or use the default PSA-based one that comes with the HSM engine
+ * commercial feature (see @ref AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE).
  *
  * The functions that need to be provided in case of a custom implementation:
  * - <c>avs_crypto_psk_engine_identity_store()</c>
@@ -444,8 +451,8 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
  * NOTE: The unit tests for this feature depend on SoftHSM and pkcs11-tool.
  * These must be installed for the tests to pass.
  *
- * IMPORTANT: Only available in the commercial version. Ignored in the open
- * source version.
+ * IMPORTANT: Only available as part of the HSM support commercial feature.
+ * Ignored in the open source version.
  */
 /* #undef AVS_COMMONS_WITH_MBEDTLS_PKCS11_ENGINE */
 
@@ -475,8 +482,8 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
  * @ref AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE_PROTECTED_STORAGE is enabled, by
  * using the <c>uid=...</c> syntax.
  *
- * IMPORTANT: Only available in the commercial version. Ignored in the open
- * source version.
+ * IMPORTANT: Only available as part of the HSM support commercial feature.
+ * Ignored in the open source version.
  */
 #    define AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE
 #endif // MBEDTLS_USE_PSA_CRYPTO
@@ -487,8 +494,8 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
  *
  * Requires @ref AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE to be enabled.
  *
- * IMPORTANT: Only available in the commercial version. Ignored in the open
- * source version.
+ * IMPORTANT: Only available as part of the HSM support commercial feature.
+ * Ignored in the open source version.
  */
 /* #undef AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE_PROTECTED_STORAGE */
 
@@ -520,8 +527,8 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
  * NOTE: The unit tests for this feature depend on SoftHSM and pkcs11-tool.
  * These must be installed for the tests to pass.
  *
- * IMPORTANT: Only available in the commercial version. Ignored in the open
- * source version.
+ * IMPORTANT: Only available as part of the HSM support commercial feature.
+ * Ignored in the open source version.
  */
 /* #undef AVS_COMMONS_WITH_OPENSSL_PKCS11_ENGINE */
 /**@}*/
