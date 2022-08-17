@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-#define LOG_LEVEL CONFIG_ANJAY_LOG_LEVEL
 #include <logging/log.h>
 /* For now, only registering main anjay log module is required */
-LOG_MODULE_REGISTER(anjay);
+LOG_MODULE_REGISTER(anjay, CONFIG_ANJAY_LOG_LEVEL);

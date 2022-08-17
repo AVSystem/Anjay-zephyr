@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.1.2 (Aug 31st, 2022)
+
+### Bugfixes
+- Fixed dangerous usage of `avs_realloc()` in hardware TLS socket integration
+- Anjay log level can be properly configured through Kconfig
+
+### Improvements
+- Added support for platforms that don't support `CONFIG_DATE_TIME`
+- Simplified underlying socket creation in `compat/net_impl.c`
+- Updated Anjay to version 3.1.2
+
 ## 3.1.1 (Aug 5th, 2022)
 
 ### Improvements

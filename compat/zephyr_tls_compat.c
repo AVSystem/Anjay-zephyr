@@ -718,10 +718,15 @@ avs_error_t anjay_zephyr_set_dane_tlsa_array__(
     }
     if (avs_is_err(err)) {
         socket->sec_tags_size = original_sec_tags_size;
-        void *new_sec_tags =
-                avs_realloc(socket->sec_tags, original_sec_tags_size);
-        if (new_sec_tags) {
-            socket->sec_tags = new_sec_tags;
+        if (!original_sec_tags_size) {
+            avs_free(socket->sec_tags);
+            socket->sec_tags = NULL;
+        } else {
+            void *new_sec_tags =
+                    avs_realloc(socket->sec_tags, original_sec_tags_size);
+            if (new_sec_tags) {
+                socket->sec_tags = new_sec_tags;
+            }
         }
     }
     return err;

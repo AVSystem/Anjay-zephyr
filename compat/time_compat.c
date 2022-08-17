@@ -17,16 +17,20 @@
 #include <avsystem/commons/avs_time.h>
 #include <kernel.h>
 
-#include <date_time.h>
+#ifdef CONFIG_DATE_TIME
+#    include <date_time.h>
+#endif // CONFIG_DATE_TIME
 
 avs_time_monotonic_t avs_time_monotonic_now(void) {
     return avs_time_monotonic_from_scalar(k_uptime_get(), AVS_TIME_MS);
 }
 
 avs_time_real_t avs_time_real_now(void) {
+#ifdef CONFIG_DATE_TIME
     int64_t time_ms;
     if (!date_time_now(&time_ms)) {
         return avs_time_real_from_scalar(time_ms, AVS_TIME_MS);
     }
+#endif // CONFIG_DATE_TIME
     return avs_time_real_from_scalar(k_uptime_get(), AVS_TIME_MS);
 }

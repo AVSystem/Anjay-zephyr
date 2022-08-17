@@ -87,6 +87,17 @@ avs_error_t _avs_net_initialize_global_compat_state(void) {
     return AVS_OK;
 }
 
+static avs_error_t set_socket_fd(net_socket_impl_t *sock) {
+    assert(sock);
+    if (sock->fd < 0
+            && (sock->fd = zsock_socket(sock->address_family, sock->socktype,
+                                        sock->sockproto))
+                           < 0) {
+        return avs_errno(AVS_UNKNOWN_ERROR);
+    }
+    return AVS_OK;
+}
+
 static avs_error_t
 net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
     net_socket_impl_t *sock = (net_socket_impl_t *) sock_;
@@ -128,12 +139,9 @@ net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
 
     avs_error_t err = AVS_OK;
     const struct zsock_addrinfo *addr = addrs;
-    if (sock->fd < 0
-            && (sock->fd = zsock_socket(addrs->ai_family, addrs->ai_socktype,
-                                        sock->sockproto))
-                           < 0) {
-        err = avs_errno(AVS_UNKNOWN_ERROR);
-    } else {
+
+    err = set_socket_fd(sock);
+    if (avs_is_ok(err)) {
         if (sock->preferred_endpoint
                 && sock->preferred_endpoint->size == sizeof(sockaddr_union_t)) {
             while (addr) {
@@ -314,19 +322,18 @@ net_bind(avs_net_socket_t *sock_, const char *address, const char *port) {
         }
     }
 #endif // CONFIG_NET_IPV6
+
     if (avs_is_ok(err)) {
-        if (sock->fd < 0
-                && (sock->fd = zsock_socket(addr.addr.sa_family, sock->socktype,
-                                            sock->sockproto))
-                               < 0) {
-            err = avs_errno(AVS_UNKNOWN_ERROR);
-        } else if (zsock_bind(sock->fd, &addr.addr, addrlen)) {
-            err = avs_errno(AVS_ECONNREFUSED);
-        } else {
-            sock->shut_down = false;
-            sock->address_family = addr.addr.sa_family;
-            sock->local_addr = addr;
-            memset(&sock->peer_addr, 0, sizeof(sock->peer_addr));
+        err = set_socket_fd(sock);
+        if (avs_is_ok(err)) {
+            if (zsock_bind(sock->fd, &addr.addr, addrlen)) {
+                err = avs_errno(AVS_ECONNREFUSED);
+            } else {
+                sock->shut_down = false;
+                sock->address_family = addr.addr.sa_family;
+                sock->local_addr = addr;
+                memset(&sock->peer_addr, 0, sizeof(sock->peer_addr));
+            }
         }
     }
     if (avs_is_err(err) && sock->fd >= 0) {

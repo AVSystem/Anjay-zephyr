@@ -18,7 +18,7 @@
 
 #include <logging/log.h>
 
-LOG_MODULE_DECLARE(anjay);
+LOG_MODULE_DECLARE(anjay, CONFIG_ANJAY_LOG_LEVEL);
 
 #define AVS_LOG__TRACE(Variant, ModuleStr, FormatStr, ...) \
     LOG_DBG("[%s] " FormatStr, ModuleStr, ##__VA_ARGS__)
