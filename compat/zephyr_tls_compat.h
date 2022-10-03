@@ -23,7 +23,7 @@
 #    include <nrf_errno.h>
 #    include <nrf_modem_gnss.h>
 #else // defined(CONFIG_NRF_MODEM_LIB) && defined(CONFIG_MODEM_KEY_MGMT)
-#    include <net/tls_credentials.h>
+#    include <zephyr/net/tls_credentials.h>
 #endif // defined(CONFIG_NRF_MODEM_LIB) && defined(CONFIG_MODEM_KEY_MGMT)
 
 #include <avsystem/commons/avs_socket.h>

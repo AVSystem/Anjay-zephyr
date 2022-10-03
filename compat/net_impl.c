@@ -26,7 +26,7 @@
 #    error "Custom implementation of the network layer conflicts with AVS_COMMONS_NET_WITH_POSIX_AVS_SOCKET"
 #endif // AVS_COMMONS_NET_WITH_POSIX_AVS_SOCKET
 
-#include <net/socket.h>
+#include <zephyr/net/socket.h>
 
 #include "net_impl.h"
 
@@ -219,7 +219,8 @@ static avs_error_t net_receive(avs_net_socket_t *sock_,
     if (zsock_poll(&pfd, 1, (int) timeout_ms) == 0) {
         return avs_errno(AVS_ETIMEDOUT);
     }
-    ssize_t bytes_received = zsock_recv(sock->fd, buffer, buffer_length, 0);
+    ssize_t bytes_received =
+            zsock_recv(sock->fd, buffer, buffer_length, ZSOCK_MSG_DONTWAIT);
     if (bytes_received < 0) {
 #ifdef CONFIG_WIFI_ESWIFI
         // Although poll succeeded, recv may fail with errno set to EAGAIN when

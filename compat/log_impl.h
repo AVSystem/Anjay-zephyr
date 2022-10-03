@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 
 LOG_MODULE_DECLARE(anjay, CONFIG_ANJAY_LOG_LEVEL);
 

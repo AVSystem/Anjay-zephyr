@@ -19,7 +19,7 @@
 #include <avsystem/commons/avs_memory.h>
 #include <avsystem/commons/avs_mutex.h>
 
-#include <kernel.h>
+#include <zephyr/kernel.h>
 
 struct avs_condvar {
     struct k_condvar zephyr_condvar;

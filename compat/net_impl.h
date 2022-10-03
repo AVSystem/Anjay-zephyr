@@ -17,7 +17,7 @@
 #ifndef NET_IMPL_H
 #define NET_IMPL_H
 
-#include <net/socket.h>
+#include <zephyr/net/socket.h>
 
 #include <avsystem/commons/avs_socket_v_table.h>
 

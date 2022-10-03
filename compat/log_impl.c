@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-#include <logging/log.h>
+#include <zephyr/logging/log.h>
 /* For now, only registering main anjay log module is required */
 LOG_MODULE_REGISTER(anjay, CONFIG_ANJAY_LOG_LEVEL);

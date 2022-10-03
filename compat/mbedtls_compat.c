@@ -21,8 +21,8 @@
 #include <avsystem/commons/avs_errno.h>
 #include <avsystem/commons/avs_time.h>
 
-#include <drivers/entropy.h>
-#include <random/rand32.h>
+#include <zephyr/drivers/entropy.h>
+#include <zephyr/random/rand32.h>
 
 typedef struct anjay_mbedtls_timing_delay_context_struct {
     avs_time_monotonic_t timer;
@@ -98,7 +98,7 @@ static int entropy_callback(void *dev,
 void anjay_zephyr_mbedtls_entropy_init__(mbedtls_entropy_context *ctx) {
     const struct device *entropy_dev = NULL;
 #ifdef CONFIG_ENTROPY_HAS_DRIVER
-    entropy_dev = device_get_binding(DT_CHOSEN_ZEPHYR_ENTROPY_LABEL);
+    entropy_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_entropy));
     AVS_ASSERT(entropy_dev, "Failed to acquire entropy device");
 #endif // CONFIG_ENTROPY_HAS_DRIVER
     int result =

@@ -15,7 +15,7 @@
  */
 
 #include <avsystem/commons/avs_time.h>
-#include <kernel.h>
+#include <zephyr/kernel.h>
 
 #ifdef CONFIG_DATE_TIME
 #    include <date_time.h>

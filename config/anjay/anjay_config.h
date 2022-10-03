@@ -174,11 +174,30 @@
 #endif // CONFIG_ANJAY_WITH_NET_STATS
 
 /**
+ * Enable support for communication timestamp
+ * (<c>anjay_get_server_last_registration_time()</c>
+ * <c>anjay_get_server_next_update_time()</c> and
+ * <c>anjay_get_server_last_communication_time()</c>) APIs.
+ */
+#ifdef CONFIG_ANJAY_WITH_COMMUNICATION_TIMESTAMP_API
+#    define ANJAY_WITH_COMMUNICATION_TIMESTAMP_API
+#endif // CONFIG_ANJAY_WITH_COMMUNICATION_TIMESTAMP_API
+
+/**
  * Enable support for the <c>anjay_resource_observation_status()</c> API.
  */
 #ifdef CONFIG_ANJAY_WITH_OBSERVATION_STATUS
 #    define ANJAY_WITH_OBSERVATION_STATUS
 #endif // CONFIG_ANJAY_WITH_OBSERVATION_STATUS
+
+/**
+ * Maximum number of servers observing a given Resource listed by
+ * <c>anjay_resource_observation_status()</c> function.
+ *
+ * Only meaningful if <c>ANJAY_WITH_OBSERVATION_STATUS</c> is enabled.
+ */
+#define ANJAY_MAX_OBSERVATION_SERVERS_REPORTED_NUMBER \
+    (CONFIG_ANJAY_MAX_OBSERVATION_SERVERS_REPORTED_NUMBER)
 
 /**
  * Enable guarding of all accesses to <c>anjay_t</c> with a mutex.
@@ -492,6 +511,26 @@
 #define ANJAY_DTLS_SESSION_BUFFER_SIZE (CONFIG_ANJAY_DTLS_SESSION_BUFFER_SIZE)
 
 /**
+ * Value of Content-Format used in Send messages. Only a few specific values are
+ * supported:
+ *
+ * - @c AVS_COAP_FORMAT_NONE means no default value is used and Anjay will
+ *   decide the format based on the what is available.
+ * - @c AVS_COAP_FORMAT_OMA_LWM2M_CBOR Anjay will generate a Send message in
+ *   LwM2M CBOR format.
+ * - @c AVS_COAP_FORMAT_SENML_CBOR Anjay will generate a Send message in SenML
+ *   CBOR format.
+ * - @c AVS_COAP_FORMAT_SENML_JSON Anjay will generate a Send message in SenML
+ *   JSON format.
+ *
+ * Note that to use a specific format it must be available during compilation.
+ *
+ * The default value defined in CMake build scripts is
+ * <c>AVS_COAP_FORMAT_NONE</c>.
+ */
+#define ANJAY_DEFAULT_SEND_FORMAT AVS_COAP_FORMAT_NONE
+
+/**
  * Optional Anjay modules.
  */
 /**@{*/
@@ -599,12 +638,6 @@
 #ifdef CONFIG_ANJAY_WITH_MODULE_FACTORY_PROVISIONING
 #    define ANJAY_WITH_MODULE_FACTORY_PROVISIONING
 #endif // CONFIG_ANJAY_WITH_MODULE_FACTORY_PROVISIONING
-
-/**
- * Enable factory provisioning module. Data provided during provisioning uses
- * SenML CBOR format.
- */
-/* #undef ANJAY_WITH_MODULE_FACTORY_PROVISIONING */
 
 /**
  * Enable oscore module (implementation of the OSCORE object).

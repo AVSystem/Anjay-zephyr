@@ -24,7 +24,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <random/rand32.h>
+#include <zephyr/random/rand32.h>
 
 #include <avsystem/commons/avs_base64.h>
 #include <avsystem/commons/avs_crypto_psk.h>
@@ -121,9 +121,10 @@ static int ensure_modem_deactivated(
 
 static const char PEM_BEGIN_TAG_PRE[] = "-----BEGIN ";
 
-static bool looks_like_pem_data(const uint8_t *data, size_t length) {
+static bool looks_like_pem_data(const void *data, size_t length) {
     for (size_t i = 0; i < length; ++i) {
-        if (!isgraph(data[i]) && !isspace(data[i])) {
+        uint8_t byte = ((const uint8_t *) data)[i];
+        if (!isgraph(byte) && !isspace(byte)) {
             return false;
         }
     }
@@ -133,16 +134,140 @@ static bool looks_like_pem_data(const uint8_t *data, size_t length) {
                || pem_begin_tag[-1] == '\n');
 }
 
+static ptrdiff_t read_asn1_length(const uint8_t **ptr, const uint8_t *end) {
+    if (*ptr >= end) {
+        return -1;
+    }
+
+    uint8_t first_byte = **ptr;
+    ++*ptr;
+
+    // See X.690 (02/21) <https://www.itu.int/rec/T-REC-X.690-202102-I/en>
+    // sections 8.1.3.3 and 10.1 for an authoritative spec of this encoding.
+
+    // Short form - the highest bit is zero, and the rest encode the length
+    if (!(first_byte & 0x80)) {
+        return first_byte;
+    }
+
+    // Long form - the highest bit is 1, the rest encode the "length of the
+    // length", and the subsequent bytes are the length encoded as big-endian
+    first_byte &= 0x7F;
+    if (first_byte > sizeof(ptrdiff_t) || *ptr + first_byte > end) {
+        return -1;
+    }
+
+    ptrdiff_t result = 0;
+
+    for (size_t i = 0; i < first_byte; ++i) {
+        result *= 256;
+        result += **ptr;
+        ++*ptr;
+    }
+
+    return result;
+}
+
+typedef enum {
+    DER_PRIVATE_KEY_UNKNOWN = -1,
+    DER_PRIVATE_KEY_PKCS8 = 0,
+    DER_PRIVATE_KEY_ECPK,
+    DER_PRIVATE_KEY_PKCS1
+} der_private_key_format_t;
+
+#    define ASN1_TAG_INTEGER 0x02
+#    define ASN1_TAG_OCTET_STRING 0x04
+#    define ASN1_TAG_CONSTRUCTED_SEQUENCE 0x30
+
+// data may be one of:
+// a) PKCS#8 private key format, as per RFC 5958:
+//
+// OneAsymmetricKey ::= SEQUENCE {
+//  version                  Version,
+//  privateKeyAlgorithm      SEQUENCE {
+//   algorithm                 PUBLIC-KEY.&id({PublicKeySet}),
+//    parameters               PUBLIC-KEY.&Params({PublicKeySet}
+//                               {@privateKeyAlgorithm.algorithm})
+//                               OPTIONAL}
+//  privateKey               OCTET STRING (CONTAINING
+//                             PUBLIC-KEY.&PrivateKey({PublicKeySet}
+//                             {@privateKeyAlgorithm.algorithm})),
+//  attributes           [0] Attributes OPTIONAL,
+//  ...,
+//  [[2: publicKey       [1] BIT STRING (CONTAINING
+//                             PUBLIC-KEY.&Params({PublicKeySet}
+//                             {@privateKeyAlgorithm.algorithm})
+//                             OPTIONAL,
+//  ...
+//    }
+//
+// b) ECPrivateKey, as per SECG1 or RFC 5915:
+//
+// ECPrivateKey ::= SEQUENCE {
+//       version INTEGER { ecPrivkeyVer1(1) } (ecPrivkeyVer1),
+//       privateKey OCTET STRING,
+//       parameters [0] ECDomainParameters {{ SECGCurveNames }} OPTIONAL,
+//       publicKey [1] BIT STRING OPTIONAL
+// }
+//
+// c) PKCS#1 RSA private key format, as per RFC 8017:
+//
+// RSAPrivateKey ::= SEQUENCE {
+//     version           Version,
+//     modulus           INTEGER,  -- n
+//     publicExponent    INTEGER,  -- e
+//     privateExponent   INTEGER,  -- d
+//     prime1            INTEGER,  -- p
+//     prime2            INTEGER,  -- q
+//     exponent1         INTEGER,  -- d mod (p-1)
+//     exponent2         INTEGER,  -- d mod (q-1)
+//     coefficient       INTEGER,  -- (inverse of q) mod p
+//     otherPrimeInfos   OtherPrimeInfos OPTIONAL
+// }
+//
+// So we can assume that:
+// - the outermost structure is always an ASN.1 SEQUENCE
+// - the first field is always an INTEGER specifying the version
+// - the second field will be:
+//   a) SEQUENCE in case of PKCS#8
+//   b) OCTET STRING in case of ECPrivateKey
+//   c) INTEGER in case of PKCS#1
+static der_private_key_format_t detect_private_key_format(const void *data_,
+                                                          size_t length) {
+    const uint8_t *data = (const uint8_t *) data_;
+    const uint8_t *const data_end = data + length;
+    // skip over the outer SEQUENCE header
+    if (data >= data_end || *data++ != ASN1_TAG_CONSTRUCTED_SEQUENCE
+            || read_asn1_length(&data, data_end) < 0) {
+        return DER_PRIVATE_KEY_UNKNOWN;
+    }
+    // skip over the version field
+    if (data >= data_end || *data++ != ASN1_TAG_INTEGER) {
+        return DER_PRIVATE_KEY_UNKNOWN;
+    }
+    ptrdiff_t version_length = read_asn1_length(&data, data_end);
+    if (version_length < 0 || data + version_length >= data_end) {
+        return DER_PRIVATE_KEY_UNKNOWN;
+    }
+    data += version_length;
+
+    switch (*data) {
+    case ASN1_TAG_CONSTRUCTED_SEQUENCE:
+        return DER_PRIVATE_KEY_PKCS8;
+    case ASN1_TAG_OCTET_STRING:
+        return DER_PRIVATE_KEY_ECPK;
+    case ASN1_TAG_INTEGER:
+        return DER_PRIVATE_KEY_PKCS1;
+    default:
+        return DER_PRIVATE_KEY_UNKNOWN;
+    }
+}
+
 static avs_error_t encode_pem_data(void **out_pem,
                                    size_t *out_pem_length,
                                    const char *label,
                                    const void *data,
                                    size_t length) {
-    if (looks_like_pem_data((const uint8_t *) data, length)) {
-        *out_pem = (void *) (intptr_t) data;
-        *out_pem_length = length;
-        return AVS_OK;
-    }
     static const char END_TAG_PRE[] = "\r\n-----END ";
     static const char TAG_POST[] = "-----";
     size_t base64_bytes = avs_base64_encoded_size(length) - 1;
@@ -189,18 +314,46 @@ static avs_error_t security_credential_set(
     switch (type) {
     case ANJAY_ZEPHYR_TLS_CRED_CA_CERT:
     case ANJAY_ZEPHYR_TLS_CRED_SERVER_CERT: {
-        avs_error_t err = encode_pem_data(&processed_data, &processed_length,
-                                          "CERTIFICATE", data, length);
-        if (avs_is_err(err)) {
-            return err;
+        if (looks_like_pem_data((const uint8_t *) data, length)) {
+            processed_data = (void *) (intptr_t) data;
+            processed_length = length;
+        } else {
+            avs_error_t err =
+                    encode_pem_data(&processed_data, &processed_length,
+                                    "CERTIFICATE", data, length);
+            if (avs_is_err(err)) {
+                return err;
+            }
         }
         break;
     }
     case ANJAY_ZEPHYR_TLS_CRED_PRIVATE_KEY: {
-        avs_error_t err = encode_pem_data(&processed_data, &processed_length,
-                                          "PRIVATE KEY", data, length);
-        if (avs_is_err(err)) {
-            return err;
+        if (looks_like_pem_data((const uint8_t *) data, length)) {
+            processed_data = (void *) (intptr_t) data;
+            processed_length = length;
+        } else {
+            const char *label = NULL;
+            switch (detect_private_key_format(data, length)) {
+            case DER_PRIVATE_KEY_PKCS8:
+                label = "PRIVATE KEY";
+                break;
+            case DER_PRIVATE_KEY_ECPK:
+                label = "EC PRIVATE KEY";
+                break;
+            case DER_PRIVATE_KEY_PKCS1:
+                label = "RSA PRIVATE KEY";
+                break;
+            case DER_PRIVATE_KEY_UNKNOWN:
+                break;
+            }
+            avs_error_t err = avs_errno(AVS_EINVAL);
+            if (label) {
+                err = encode_pem_data(&processed_data, &processed_length, label,
+                                      data, length);
+            }
+            if (avs_is_err(err)) {
+                return err;
+            }
         }
         break;
     }

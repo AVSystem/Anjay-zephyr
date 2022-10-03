@@ -17,8 +17,8 @@
 #ifndef COMPAT_H
 #define COMPAT_H
 
-#include <net/socket.h>
-#include <posix/time.h>
+#include <zephyr/net/socket.h>
+#include <zephyr/posix/time.h>
 
 typedef int sockfd_t;
 

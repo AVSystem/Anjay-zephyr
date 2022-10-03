@@ -1,5 +1,20 @@
 # Changelog
 
+## 3.2.1 (Dec 13th, 2022)
+
+### Bugfixes
+- Deleted second ANJAY_WITH_MODULE_FACTORY_PROVISIONING definition in anjay_config.h
+- Added correct usage of the `ZSOCK_MSG_DONTWAIT` flag in network integration
+
+### Improvements
+- Added ANJAY_WITH_COMMUNICATION_TIMESTAMP_API, ANJAY_WITH_OBSERVATION_STATUS
+  and ANJAY_MAX_OBSERVATION_SERVERS_REPORTED_NUMBER to Kconfig
+- Fixed compatibility with newer versions of Zephyr that require including its
+  headers from the `zephyr/` directory
+- Added support for private keys stored as DER-encoded PKCS#1 and SECG1
+  (in addition to previously supported PKCS#8 and PEM encodings) on nRF91
+  security backend
+
 ## 3.1.2 (Aug 31st, 2022)
 
 ### Bugfixes

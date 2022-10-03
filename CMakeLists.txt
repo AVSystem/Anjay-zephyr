@@ -51,7 +51,4 @@ if(NOT CONFIG_ASSERT)
     target_compile_definitions(${ZEPHYR_CURRENT_LIBRARY} PRIVATE NDEBUG)
 endif()
 
-set_source_files_properties(${AVS_COMMONS_SOURCES}
-                            PROPERTIES INCLUDE_DIRECTORIES ${ZEPHYR_BASE}/include/posix)
-
 endif()

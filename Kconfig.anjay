@@ -151,9 +151,25 @@ config ANJAY_WITH_NET_STATS
     bool "Enable support for measuring amount of LwM2M traffic."
     default y
 
+config ANJAY_WITH_COMMUNICATION_TIMESTAMP_API
+    bool "Enable support for communication timestamp API."
+    default n
+    help
+      Enable anjay_get_server_last_registration_time(),
+      anjay_get_server_next_update_time() and
+      anjay_get_server_last_communication_time() functions.
+    
 config ANJAY_WITH_OBSERVATION_STATUS
     bool "Enable support for the anjay_resource_observation_status() API."
-    default y
+    default n
+    
+config ANJAY_MAX_OBSERVATION_SERVERS_REPORTED_NUMBER
+    int "Maximum number of listed servers that observe a given Resource."
+    default 0
+    depends on ANJAY_WITH_OBSERVATION_STATUS
+    help
+      Maximum number of servers observing a given Resource listed by
+      anjay_resource_observation_status() function.
 
 config ANJAY_WITH_THREAD_SAFETY
     bool "Enable guarding of all accesses to anjay_t with a mutex."
