@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -545,7 +545,7 @@ static bool security_tag_is_ephemeral(anjay_zephyr_sec_tag_t tag) {
                       < EPHEMERAL_SEC_TAG_COUNT;
 }
 
-const anjay_zephyr_sec_tag_t SEC_TAG_INVALID =
+static const anjay_zephyr_sec_tag_t SEC_TAG_INVALID =
         CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_EPHEMERAL_SEC_TAG_BASE == 0
                 ? CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_EPHEMERAL_SEC_TAG_BASE
                           + EPHEMERAL_SEC_TAG_COUNT

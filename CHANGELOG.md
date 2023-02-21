@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.3.0 (Feb 21st, 2023)
+
+### Improvements
+- Updated Anjay to version 3.3.0
+- Revamped config of Anjay and its dependencies
+- Moved common code from demo samples to Anjay Zephyr
+- Added runtime certificate configuration option
+
 ## 3.2.1 (Dec 13th, 2022)
 
 ### Bugfixes

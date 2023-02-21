@@ -14,24 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef COMPAT_H
-#define COMPAT_H
+#pragma once
 
-#include <zephyr/net/socket.h>
-#include <zephyr/posix/time.h>
+#include <anjay/anjay.h>
+#include <anjay/fw_update.h>
 
-typedef int sockfd_t;
-
-#ifndef pollfd
-#    define pollfd zsock_pollfd
-#endif // pollfd
-
-#ifndef poll
-#    define poll zsock_poll
-#endif // poll
-
-#ifndef POLLIN
-#    define POLLIN ZSOCK_POLLIN
-#endif // POLLIN
-
-#endif /* COMPAT_H */
+#ifdef CONFIG_ANJAY_ZEPHYR_FOTA
+int _anjay_zephyr_fw_update_install(anjay_t *anjay);
+void _anjay_zephyr_fw_update_apply(void);
+bool _anjay_zephyr_fw_update_requested(void);
+void _anjay_zephyr_fw_update_reboot(void);
+#endif // CONFIG_ANJAY_ZEPHYR_FOTA

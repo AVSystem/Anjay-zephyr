@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef COMPAT_H
-#define COMPAT_H
+#pragma once
 
-#include <zephyr/net/socket.h>
-#include <zephyr/posix/time.h>
+#include <zephyr/kernel.h>
+#include <zephyr/net/net_if.h>
 
-typedef int sockfd_t;
+extern struct k_mutex anjay_zephyr_network_internal_connect_mutex;
+extern struct k_condvar anjay_zephyr_network_internal_connect_condvar;
 
-#ifndef pollfd
-#    define pollfd zsock_pollfd
-#endif // pollfd
+int _anjay_zephyr_network_internal_platform_initialize(void);
 
-#ifndef poll
-#    define poll zsock_poll
-#endif // poll
+#if defined(CONFIG_NET_NATIVE_IPV4) || defined(CONFIG_NET_NATIVE_IPV6)
+bool _anjay_zephyr_network_internal_has_ip_address(struct net_if *iface);
+#endif // defined(CONFIG_NET_NATIVE_IPV4) || defined(CONFIG_NET_NATIVE_IPV6)
 
-#ifndef POLLIN
-#    define POLLIN ZSOCK_POLLIN
-#endif // POLLIN
-
-#endif /* COMPAT_H */
+void _anjay_zephyr_network_internal_connection_state_changed(void);

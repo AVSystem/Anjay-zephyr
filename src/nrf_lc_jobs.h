@@ -14,24 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef COMPAT_H
-#define COMPAT_H
+#include "objects/objects.h"
+#include <anjay/anjay.h>
 
-#include <zephyr/net/socket.h>
-#include <zephyr/posix/time.h>
-
-typedef int sockfd_t;
-
-#ifndef pollfd
-#    define pollfd zsock_pollfd
-#endif // pollfd
-
-#ifndef poll
-#    define poll zsock_poll
-#endif // poll
-
-#ifndef POLLIN
-#    define POLLIN ZSOCK_POLLIN
-#endif // POLLIN
-
-#endif /* COMPAT_H */
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
+struct anjay_zephyr_cell_request_job_args {
+    anjay_t *anjay;
+    enum anjay_zephyr_loc_assist_cell_request_type request_type;
+};
+avs_sched_clb_t _anjay_zephyr_cell_request_job;
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
+#ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
+avs_sched_clb_t _anjay_zephyr_agps_request_job;
+#endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS

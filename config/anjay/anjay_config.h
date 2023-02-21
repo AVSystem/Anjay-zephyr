@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -309,7 +309,7 @@
 #endif // CONFIG_ANJAY_WITH_CORE_PERSISTENCE
 
 /**
- * Enable support for CoAP Content-Format numerical values 1541-1543 that have
+ * Enable support for CoAP Content-Format numerical values 1541-1544 that have
  * been used before final LwM2M TS 1.0.
  */
 #ifdef CONFIG_ANJAY_WITH_LEGACY_CONTENT_FORMAT_SUPPORT
@@ -580,6 +580,14 @@
 #ifdef CONFIG_ANJAY_WITH_MODULE_FW_UPDATE
 #    define ANJAY_WITH_MODULE_FW_UPDATE
 #endif // CONFIG_ANJAY_WITH_MODULE_FW_UPDATE
+
+/**
+ * Disable support for PUSH mode Firmware Update.
+ *
+ * Only meaningful if <c>ANJAY_WITH_MODULE_FW_UPDATE</c> is enabled. Requires
+ * <c>ANJAY_WITH_DOWNLOADER</c> to be enabled.
+ */
+/* #undef ANJAY_WITHOUT_MODULE_FW_UPDATE_PUSH_MODE */
 
 /**
  * Enables ipso_objects module (generic implementation of the following kinds of

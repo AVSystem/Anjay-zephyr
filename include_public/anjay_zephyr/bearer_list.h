@@ -14,24 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef COMPAT_H
-#define COMPAT_H
+#pragma once
 
-#include <zephyr/net/socket.h>
-#include <zephyr/posix/time.h>
-
-typedef int sockfd_t;
-
-#ifndef pollfd
-#    define pollfd zsock_pollfd
-#endif // pollfd
-
-#ifndef poll
-#    define poll zsock_poll
-#endif // poll
-
-#ifndef POLLIN
-#    define POLLIN ZSOCK_POLLIN
-#endif // POLLIN
-
-#endif /* COMPAT_H */
+enum anjay_zephyr_network_bearer_t {
+#ifdef CONFIG_WIFI
+    ANJAY_ZEPHYR_NETWORK_BEARER_WIFI,
+#endif // CONFIG_WIFI
+#if defined(CONFIG_MODEM) || defined(CONFIG_LTE_LINK_CONTROL)
+    ANJAY_ZEPHYR_NETWORK_BEARER_CELLULAR,
+#endif // defined(CONFIG_MODEM) || defined(CONFIG_LTE_LINK_CONTROL)
+#ifdef CONFIG_NET_L2_OPENTHREAD
+    ANJAY_ZEPHYR_NETWORK_BEARER_OPENTHREAD,
+#endif // CONFIG_NET_L2_OPENTHREAD
+    ANJAY_ZEPHYR_NETWORK_BEARER_LIMIT
+};

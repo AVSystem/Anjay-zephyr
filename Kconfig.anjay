@@ -1,4 +1,4 @@
-# Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
+# Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -81,14 +81,14 @@ config ANJAY_COMPAT_TIME
     bool "Enable Time compatibility implementation"
 
 menuconfig ANJAY_WITH_LOGS
-    bool "Enable logging in Anjay."
+    bool "Enable logging in Anjay, avs_commons and avs_coap."
     default y
     depends on LOG
     help
       If this flag is disabled, no logging is compiled into the binary at all.
 
     config ANJAY_WITH_TRACE_LOGS
-        bool "Enable TRACE-level logs in Anjay."
+        bool "Enable TRACE-level logs in Anjay, avs_commons and avs_coap."
         default y
         depends on ANJAY_WITH_LOGS
 
@@ -158,11 +158,11 @@ config ANJAY_WITH_COMMUNICATION_TIMESTAMP_API
       Enable anjay_get_server_last_registration_time(),
       anjay_get_server_next_update_time() and
       anjay_get_server_last_communication_time() functions.
-    
+
 config ANJAY_WITH_OBSERVATION_STATUS
     bool "Enable support for the anjay_resource_observation_status() API."
     default n
-    
+
 config ANJAY_MAX_OBSERVATION_SERVERS_REPORTED_NUMBER
     int "Maximum number of listed servers that observe a given Resource."
     default 0
@@ -312,6 +312,11 @@ config ANJAY_WITH_MODULE_FACTORY_PROVISIONING
     bool "Enable factory provisioning module"
     default n
     depends on ANJAY_WITH_CBOR
+
+config ANJAY_WITH_NORDIC_LOCATION_SERVICES
+    bool "Enable Nordic location services"
+    depends on BOARD_THINGY91_NRF9160_NS || BOARD_NRF9160DK_NRF9160_NS
+    default n
 
 endif
 

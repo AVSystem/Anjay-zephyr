@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef COMPAT_H
-#define COMPAT_H
+#pragma once
 
-#include <zephyr/net/socket.h>
-#include <zephyr/posix/time.h>
+#include <anjay/core.h>
 
-typedef int sockfd_t;
+#include <anjay_zephyr/factory_provisioning.h>
 
-#ifndef pollfd
-#    define pollfd zsock_pollfd
-#endif // pollfd
+#ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE
+int _anjay_zephyr_persistence_purge(void);
+int _anjay_zephyr_restore_anjay_from_persistence(anjay_t *anjay);
+int _anjay_zephyr_persist_anjay_if_required(anjay_t *anjay);
 
-#ifndef poll
-#    define poll zsock_poll
-#endif // poll
-
-#ifndef POLLIN
-#    define POLLIN ZSOCK_POLLIN
-#endif // POLLIN
-
-#endif /* COMPAT_H */
+#    ifdef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
+int _anjay_zephyr_restore_anjay_from_factory_provisioning(anjay_t *anjay);
+#    endif // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
+#endif     // CONFIG_ANJAY_ZEPHYR_PERSISTENCE

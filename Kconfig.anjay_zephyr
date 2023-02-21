@@ -1,0 +1,256 @@
+# Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+menu "Anjay Zephyr client extensions"
+
+config ANJAY_ZEPHYR_DEVICE_MANUFACTURER
+	string "Device manufacturer"
+	default "Unknown"
+
+config ANJAY_ZEPHYR_MODEL_NUMBER
+	string "Model number"
+	default "Unknown"
+
+config ANJAY_ZEPHYR_VERSION
+	string "Client Version"
+	default "3.3.0"
+menu "Client default options"
+	visible if !ANJAY_ZEPHYR_FACTORY_PROVISIONING
+
+	config ANJAY_ZEPHYR_AUTOGENERATE_ENDPOINT_NAME
+		bool "Autogenerate endpoint name"
+		default y
+
+	config ANJAY_ZEPHYR_BOOTSTRAP_SERVER
+		bool "Bootstrap server"
+		default n
+
+	config ANJAY_ZEPHYR_USE_PERSISTENCE
+		bool "Use persistence"
+		default n
+		depends on ANJAY_ZEPHYR_PERSISTENCE
+
+	config ANJAY_ZEPHYR_ENDPOINT_NAME
+		string "Endpoint Name"
+		default "Anjay-zephyr-client"
+		depends on !ANJAY_ZEPHYR_AUTOGENERATE_ENDPOINT_NAME
+
+	config ANJAY_ZEPHYR_LIFETIME
+		int "Client lifetime"
+		default 50
+
+	config ANJAY_ZEPHYR_SERVER_URI
+		string "Server URI"
+		default "coaps://eu.iot.avsystem.cloud:5684"
+
+	menuconfig ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
+		bool "Enable runtime certificate configuration through shell"
+		depends on MBEDTLS_TLS_LIBRARY || MBEDTLS
+		default n
+
+		config ANJAY_ZEPHYR_MAX_PUBLIC_CERT_LEN
+			int "Max public certificate length"
+			default 2048
+			depends on ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
+
+		config ANJAY_ZEPHYR_MAX_PRIVATE_KEY_LEN
+			int "Max private key length"
+			default 1024
+			depends on ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
+
+	choice ANJAY_ZEPHYR_SECURITY_MODE
+        prompt "Choose security mode"
+        default ANJAY_ZEPHYR_SECURITY_MODE_PSK
+
+        config ANJAY_ZEPHYR_SECURITY_MODE_NOSEC
+            bool "Non-secure connection"
+
+        config ANJAY_ZEPHYR_SECURITY_MODE_PSK
+            bool "PSK"
+
+		config ANJAY_ZEPHYR_SECURITY_MODE_CERT
+            bool "Runtime certificates"
+			depends on ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
+    endchoice
+
+	config ANJAY_ZEPHYR_PSK_IDENTITY
+		string "PSK Identity"
+		default "Anjay-zephyr-client"
+
+	config ANJAY_ZEPHYR_PSK_KEY
+		string "PSK Key"
+		default "psk"
+endmenu
+
+menu "WiFi default configuration"
+	visible if WIFI
+
+	config ANJAY_ZEPHYR_WIFI_SSID
+		string "WiFi SSID"
+		default "ssid"
+
+	config ANJAY_ZEPHYR_WIFI_PASSWORD
+		string "WiFi Password"
+		default "mypassword"
+endmenu
+
+
+config ANJAY_ZEPHYR_THREAD_PRIORITY
+	int "Priority of the Anjay thread"
+	default 1
+
+config ANJAY_ZEPHYR_THREAD_STACK_SIZE
+	int "Size of the Anjay thread stack"
+	default 8192
+
+config ANJAY_ZEPHYR_NTP_SERVER
+	string "NTP Server"
+	default "time.nist.gov"
+
+config ANJAY_ZEPHYR_LOCATION_OBJECT
+	def_bool ANJAY_ZEPHYR_GPS
+
+config ANJAY_ZEPHYR_SHELL
+    bool "Enable Anjay shell commands"
+    default n
+	select SHELL
+
+config ANJAY_ZEPHYR_GPS
+	def_bool ANJAY_ZEPHYR_GPS_NRF
+
+config ANJAY_ZEPHYR_GPS_ALTITUDE
+	def_bool ANJAY_ZEPHYR_GPS_NRF
+
+config ANJAY_ZEPHYR_GPS_RADIUS
+	def_bool ANJAY_ZEPHYR_GPS_NRF
+
+config ANJAY_ZEPHYR_GPS_VELOCITY
+	def_bool n
+
+config ANJAY_ZEPHYR_GPS_SPEED
+	def_bool ANJAY_ZEPHYR_GPS_NRF
+
+config ANJAY_ZEPHYR_LOCATION_SERVICES
+	def_bool ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE || ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
+	select ANJAY_WITH_LWM2M11
+	select ANJAY_WITH_SEND
+	select ANJAY_WITH_SENML_JSON
+
+config ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
+	def_bool ANJAY_ZEPHYR_GPS_NRF_A_GPS || ANJAY_ZEPHYR_GPS_NRF_P_GPS
+
+menuconfig ANJAY_ZEPHYR_GPS_NRF
+	bool "Enable GPS on nRF9160-based devices"
+	default n
+	depends on BOARD_THINGY91_NRF9160_NS || BOARD_NRF9160DK_NRF9160_NS
+	select AT_CMD
+	help
+		Enable GPS on nRF9160-based devices and Location Object implementation.
+
+		Please note, that nRF9160 is not able to acquire the cold GPS fix if
+		the chip is interrupted by any LTE activity. The application might
+		temporarily enable GPS priority mode, which shuts down LTE completely and
+		attempts to acquire the fix. This behavior is controlled by
+		gps_prio_mode_timeout and gps_prio_mode_cooldown variables which are
+		configurable in the runtime. Setting gps_prio_mode_timeout to 0 will
+		disable the GPS priority mode completely.
+
+	config ANJAY_ZEPHYR_GPS_NRF_EXTERNAL_ANTENNA
+		bool "Use external GPS antenna"
+		depends on ANJAY_ZEPHYR_GPS_NRF
+
+	config ANJAY_ZEPHYR_GPS_NRF_A_GPS
+		bool "Enable A-GPS using Nordic Location Services over LwM2M"
+		depends on ANJAY_ZEPHYR_GPS_NRF
+		select NRF_CLOUD_AGPS
+		help
+			Attempt to retrieve A-GPS data using Nordic Location Services over LwM2M.
+
+			This is an experimental feature under active development, which is currently
+			available only on selected instances of AVSystem's Coiote IoT DM servers.
+
+config ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
+	bool "Enable manual requests for cell-based location"
+	depends on ANJAY_ZEPHYR_NRF_LC_INFO
+	help
+		Enable "anjay nls_cell_request" command for retrieving cell-based location using
+		Nordic Location Services over LwM2M.
+
+		This is an experimental feature under active development, which is currently
+		available only on selected instances of AVSystem's Coiote IoT DM servers.
+
+config ANJAY_ZEPHYR_NRF_LC_INFO
+	def_bool LTE_LINK_CONTROL && (BOARD_THINGY91_NRF9160_NS || BOARD_NRF9160DK_NRF9160_NS)
+	help
+		Enables handlers tracking nRF9160 Link Control library state and Connectivity
+		Monitor, ECID objects utilizing data from LC library.
+
+config ANJAY_ZEPHYR_NRF_LC_INFO_CELL_POLL_RATE
+	int "Current and neighbouring cells stats polling rate [seconds]"
+	default 30
+	range 1 2147483647
+	depends on ANJAY_ZEPHYR_NRF_LC_INFO
+
+config ANJAY_ZEPHYR_NETWORK_KEEPALIVE_RATE
+	int "Rate of checking whether the network connection is still alive [seconds]"
+	default 60
+	range 1 2147483647
+	depends on WIFI_ESWIFI
+
+config ANJAY_ZEPHYR_FOTA
+	bool "Enable the Firmware Update object"
+	depends on BOOTLOADER_MCUBOOT
+	select IMG_MANAGER
+
+config ANJAY_ZEPHYR_PERSISTENCE
+	bool "Enable persistence"
+	select ANJAY_WITH_ACCESS_CONTROL
+	select ANJAY_WITH_MODULE_ACCESS_CONTROL
+	help
+		Enables persistence of Access Control Object, Security Object
+		and Server Object.
+
+config ANJAY_ZEPHYR_FACTORY_PROVISIONING
+	bool "Use factory provisioning"
+	depends on ANJAY_ZEPHYR_PERSISTENCE
+	help
+		Use the Factory Provisioning process to configure the client instead of CLI.
+
+		This option causes the client to load the provisioned settings at boot and disables
+		the shell commands that would allow modifying them.
+
+		To provision the settings for use with this configuration, please flash a firmware
+		compiled with (TBD) enabled first.
+
+config ANJAY_ZEPHYR_FACTORY_PROVISIONING_INITIAL_FLASH
+	bool "Build the app in initial flashing mode"
+	depends on ANJAY_ZEPHYR_FACTORY_PROVISIONING
+	select ANJAY_WITH_CBOR
+	select ANJAY_WITH_MODULE_FACTORY_PROVISIONING
+	select FILE_SYSTEM
+	select MCUMGR
+	select MCUMGR_CMD_FS_MGMT
+	select MCUMGR_SMP_SHELL
+	select UART_CONSOLE_MCUMGR
+	help
+		This option should be used with specially tailored version of the application that
+		will not perform any normal LwM2M client operation, but instead it will allow to
+		perform the initial flashing of the factory provisioning data.
+
+config ANJAY_ZEPHYR_NRF_MODEM_PSK_QUERY
+	string "Security tag for the credential stored in the modem"
+	depends on NRF_MODEM_LIB && MODEM_KEY_MGMT
+	default "1"
+
+endmenu

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -190,7 +190,10 @@ net_connect(avs_net_socket_t *sock_, const char *host, const char *port) {
 static avs_error_t
 net_send(avs_net_socket_t *sock_, const void *buffer, size_t buffer_length) {
     net_socket_impl_t *sock = (net_socket_impl_t *) sock_;
-    ssize_t written = zsock_send(sock->fd, buffer, buffer_length, 0);
+    ssize_t written = 0;
+    if (buffer_length || sock->socktype != SOCK_STREAM) {
+        written = zsock_send(sock->fd, buffer, buffer_length, 0);
+    }
     if (written >= 0) {
         sock->bytes_sent += (size_t) written;
         if ((size_t) written == buffer_length) {
