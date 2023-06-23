@@ -162,3 +162,25 @@ void anjay_zephyr_location_object_release(
  */
 void anjay_zephyr_location_object_update(
         anjay_t *anjay, const anjay_dm_object_def_t *const *def);
+
+/**
+ * Create LwM2M Light Control object.
+ *
+ * @param user_leds                     Pointer to an array with LED
+ * configurations.
+ * @param user_leds_len                 Length of @p user_leds array.
+ * @return                              Pointer to pointer to a structure
+ * defining a LwM2M Light Control object.
+ */
+const anjay_dm_object_def_t **
+anjay_zephyr_light_control_object_create(const struct gpio_dt_spec *user_leds,
+                                         uint16_t user_leds_len);
+/**
+ * Release memory related to LwM2M light control object.
+ *
+ * @param out_def                       Pointer to definition of LwM2M light
+ * Control object previously obtained by @ref
+ * anjay_zephyr_light_control_object_create.
+ */
+void anjay_zephyr_light_control_object_release(
+        const anjay_dm_object_def_t ***out_def);

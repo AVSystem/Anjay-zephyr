@@ -19,6 +19,9 @@
 #include <zephyr/settings/settings.h>
 
 #include <anjay/access_control.h>
+#ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
+#    include <anjay/attr_storage.h>
+#endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
 #include <anjay/core.h>
 #include <anjay/security.h>
 #include <anjay/server.h>
@@ -66,6 +69,9 @@ struct persistence_target {
 
 static bool previous_attempt_failed;
 static const struct persistence_target targets[] = {
+#ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
+    DECL_TARGET(attr_storage),
+#endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
     DECL_TARGET(access_control), DECL_TARGET(security_object),
     DECL_TARGET(server_object)
 };
@@ -80,24 +86,32 @@ int anjay_zephyr_persistence_init(void) {
     return 0;
 }
 
-static int settings_purge(const char *root_name) {
-    for (size_t i = 0; i < AVS_ARRAY_SIZE(targets); i++) {
-        char key_buf[64];
-
-        if (avs_simple_snprintf(key_buf, sizeof(key_buf), "%s/%s", root_name,
-                                targets[i].name)
-                        < 0
-                || settings_save_one(key_buf, NULL, 0)) {
-            LOG_ERR("Couldn't delete %s/%s from storage", root_name,
-                    targets[i].name);
-            return -1;
-        }
+static int clear_key(const char *root_name, const char *key) {
+    char key_buf[64];
+    if (avs_simple_snprintf(key_buf, sizeof(key_buf), "%s/%s", root_name, key)
+                    < 0
+            || settings_save_one(key_buf, NULL, 0)) {
+        LOG_ERR("Couldn't delete %s/%s from storage", root_name, key);
+        return -1;
     }
+    LOG_INF("deleted %s/%s from storage", root_name, key);
+
     return 0;
 }
 
+static int settings_purge(const char *root_name) {
+    int ret = 0;
+    for (size_t i = 0; i < AVS_ARRAY_SIZE(targets); i++) {
+        if (clear_key(root_name, targets[i].name)) {
+            ret = -1;
+        }
+    }
+    return ret;
+}
+
 int _anjay_zephyr_persistence_purge(void) {
-    return settings_purge(PERSISTENCE_ROOT_NAME);
+    int ret = settings_purge(PERSISTENCE_ROOT_NAME);
+    return ret;
 }
 
 static int persistence_load(const char *key,
@@ -187,7 +201,8 @@ int _anjay_zephyr_restore_anjay_from_factory_provisioning(anjay_t *anjay) {
 
 static int persist_target_to_settings(anjay_t *anjay,
                                       const char *root_name,
-                                      const struct persistence_target *target) {
+                                      const char *target_name,
+                                      persist_fn_t *persist_cb) {
     avs_stream_t *stream = avs_stream_membuf_create();
     void *collected_stream = NULL;
     size_t collected_stream_len;
@@ -198,26 +213,26 @@ static int persist_target_to_settings(anjay_t *anjay,
 
     int result = -1;
 
-    if (avs_is_err(target->persist(anjay, stream))
+    if (avs_is_err(persist_cb(anjay, stream))
             || avs_is_err(avs_stream_membuf_take_ownership(
                        stream, &collected_stream, &collected_stream_len))) {
-        LOG_ERR("Couldn't persist %s", target->name);
+        LOG_ERR("Couldn't persist %s", target_name);
         goto cleanup;
     }
 
     char key_buf[64];
 
     if (avs_simple_snprintf(key_buf, sizeof(key_buf), "%s/%s", root_name,
-                            target->name)
+                            target_name)
                     < 0
             || settings_save_one(key_buf, collected_stream,
                                  collected_stream_len)) {
-        LOG_ERR("Couldn't save %s/%s to storage", root_name, target->name);
+        LOG_ERR("Couldn't save %s/%s to storage", root_name, target_name);
         previous_attempt_failed = true;
         goto cleanup;
     }
 
-    LOG_INF("%s persisted, len: %zu", target->name, collected_stream_len);
+    LOG_INF("%s persisted, len: %zu", target_name, collected_stream_len);
 
     result = 0;
 
@@ -237,8 +252,9 @@ int _anjay_zephyr_persist_anjay_if_required(anjay_t *anjay) {
             continue;
         }
 
-        int result = persist_target_to_settings(anjay, PERSISTENCE_ROOT_NAME,
-                                                &targets[i]);
+        int result =
+                persist_target_to_settings(anjay, PERSISTENCE_ROOT_NAME,
+                                           targets[i].name, targets[i].persist);
 
         if (result) {
             return result;
@@ -291,8 +307,10 @@ int anjay_zephyr_persist_factory_provisioning_info(anjay_t *anjay) {
     assert(anjay);
 
     for (size_t i = 0; i < AVS_ARRAY_SIZE(targets); i++) {
-        int result = persist_target_to_settings(
-                anjay, FACTORY_PROVISIONING_ROOT_NAME, &targets[i]);
+        int result =
+                persist_target_to_settings(anjay,
+                                           FACTORY_PROVISIONING_ROOT_NAME,
+                                           targets[i].name, targets[i].persist);
 
         if (result) {
             settings_purge(FACTORY_PROVISIONING_ROOT_NAME);

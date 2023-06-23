@@ -16,6 +16,9 @@
 
 #include <zephyr/shell/shell.h>
 #include <zephyr/shell/shell_uart.h>
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+#    include <zephyr/logging/log.h>
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
 
 #include "version.h"
 #if __has_include("ncs_version.h")
@@ -27,8 +30,12 @@
 #include "persistence.h"
 #include "utils.h"
 
+#include "location_services.h"
 #include "network/network.h"
-#include "nrf_lc_jobs.h"
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+LOG_MODULE_REGISTER(anjay_zephyr_shell);
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
 
 static int
 cmd_anjay_start(const struct shell *shell, size_t argc, char **argv) {
@@ -42,7 +49,7 @@ cmd_anjay_start(const struct shell *shell, size_t argc, char **argv) {
         return 0;
     }
 
-    return ENOEXEC;
+    return -ENOEXEC;
 }
 
 static int cmd_anjay_stop(const struct shell *shell, size_t argc, char **argv) {
@@ -58,7 +65,7 @@ static int cmd_anjay_stop(const struct shell *shell, size_t argc, char **argv) {
         return 0;
     }
 
-    return ENOEXEC;
+    return -ENOEXEC;
 }
 
 #ifdef WITH_ANJAY_ZEPHYR_CONFIG
@@ -133,49 +140,82 @@ cmd_anjay_config_save(const struct shell *shell, size_t argc, char **argv) {
 }
 #endif // WITH_ANJAY_ZEPHYR_CONFIG
 
-#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
-static int cmd_anjay_nls_cell_request(const struct shell *shell,
-                                      size_t argc,
-                                      char **argv,
-                                      void *data) {
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+static void gf_location_request_cb(
+        anjay_zephyr_location_services_request_result_t result,
+        anjay_zephyr_location_services_ground_fix_location_t location) {
+    if (result == ANJAY_ZEPHYR_LOCATION_SERVICES_SUCCESSFUL) {
+        LOG_INF("Received ground fix location"
+                ", lat: %.3f deg, lon: %.3f deg, acc: %.3f m",
+                location.latitude, location.longitude, location.accuracy);
+    } else {
+        LOG_WRN("Ground fix location request failed, err: %d", (int) result);
+    }
+}
+
+static int cmd_anjay_nls_gf_location_request(const struct shell *shell,
+                                             size_t argc,
+                                             char **argv,
+                                             void *data) {
+    int result = 0;
     SYNCHRONIZED(anjay_zephyr_global_anjay_mutex) {
         if (anjay_zephyr_global_anjay) {
-            struct anjay_zephyr_cell_request_job_args args = {
+            anjay_zephyr_location_services_gf_location_request_type_t req_type =
+                    (anjay_zephyr_location_services_gf_location_request_type_t) (uintptr_t)
+                            data;
+            struct anjay_zephyr_gf_location_request_job_args args = {
                 .anjay = anjay_zephyr_global_anjay,
-                .request_type =
-                        (enum anjay_zephyr_loc_assist_cell_request_type) (uintptr_t)
-                                data
+                .cb = (req_type
+                               == ANJAY_ZEPHYR_LOC_SERVICES_GF_LOCATION_REQUEST_REQUEST_SINGLE
+                       || req_type
+                                  == ANJAY_ZEPHYR_LOC_SERVICES_GF_LOCATION_REQUEST_REQUEST_MULTI)
+                              ? gf_location_request_cb
+                              : NULL,
+                .request_type = req_type
             };
             AVS_SCHED_NOW(anjay_get_scheduler(anjay_zephyr_global_anjay), NULL,
-                          _anjay_zephyr_cell_request_job, &args, sizeof(args));
+                          _anjay_zephyr_gf_location_request_job, &args,
+                          sizeof(args));
+
         } else {
             shell_warn(shell, "Anjay is not running");
+            result = -ENOEXEC;
         }
     }
-    return 0;
+    return result;
 }
-#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
 
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 static int cmd_anjay_nls_agps_request(const struct shell *shell,
                                       size_t argc,
                                       char **argv,
                                       void *data) {
-    ARG_UNUSED(argc);
-    ARG_UNUSED(argv);
-
+    int result = 0;
     SYNCHRONIZED(anjay_zephyr_global_anjay_mutex) {
         if (anjay_zephyr_global_anjay) {
             anjay_t *anjay = anjay_zephyr_global_anjay;
 
-            AVS_SCHED_NOW(anjay_get_scheduler(anjay), NULL,
-                          _anjay_zephyr_agps_request_job, &anjay,
-                          sizeof(anjay));
+            struct anjay_zephyr_agps_request_job_args args = {
+                .anjay = anjay_zephyr_global_anjay,
+                .cb = NULL,
+                .request_mask = LOC_SERVICES_A_GPS_FULL_MASK,
+                .exponential_backoff = false
+            };
+
+            if (result == 0) {
+                AVS_SCHED_NOW(anjay_get_scheduler(anjay), NULL,
+                              _anjay_zephyr_agps_request_job, &args,
+                              sizeof(args));
+            } else {
+                shell_error(shell, "Wrong argument, request aborted");
+            }
         } else {
             shell_warn(shell, "Anjay is not running");
+            result = -ENOEXEC;
         }
     }
-    return 0;
+    return result;
 }
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 
@@ -271,12 +311,13 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 #        endif // CONFIG_ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
 #    endif     // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 #    ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-        SHELL_CMD(OPTION_KEY_GPS_NRF_PRIO_MODE_TIMEOUT,
+        SHELL_CMD(OPTION_KEY_GPS_NRF_PRIO_MODE_PERMITTED,
                   NULL,
-                  "GPS priority mode timeout - determines (in seconds) for how "
-                  "long the modem can run with LTE disabled, in case of "
-                  "trouble with producing a GPS fix. Set to 0 to disable GPS "
-                  "priority mode at all.",
+                  "GPS priority mode permitted - if set, Anjay Zephyr will "
+                  "temporarily activate the GPS priority over LTE idle mode in "
+                  "case GPS fix cannot be produced. The mode will be "
+                  "deactivated automatically after getting a GPS fix or after "
+                  "40 seconds.",
                   cmd_anjay_config_set),
         SHELL_CMD(OPTION_KEY_GPS_NRF_PRIO_MODE_COOLDOWN,
                   NULL,
@@ -289,8 +330,11 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
             && !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
         SHELL_CMD(OPTION_KEY_USE_PERSISTENCE,
                   NULL,
-                  "Enables persistence of Access Control Object, Attribute "
-                  "Storage, Security Object and Server Object.",
+                  "Enables persistence of Access Control Object, "
+#        ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
+                  "Attribute Storage, "
+#        endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
+                  "Security Object and Server Object.",
                   cmd_anjay_config_set),
 #    endif /* defined(CONFIG_ANJAY_ZEPHYR_PERSISTENCE) &&        \
             * !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING) \
@@ -309,7 +353,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
         SHELL_SUBCMD_SET_END);
 #endif // WITH_ANJAY_ZEPHYR_CONFIG
 
-#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
 #    if KERNEL_VERSION_NUMBER >= 0x30300 || NCS_VERSION_NUMBER >= 0x20263
 #        define SUBCMD_DEF(Handler, Arg, Help) (Handler, Arg, Help)
 #    else // KERNEL_VERSION_NUMBER >= 0x30300 || NCS_VERSION_NUMBER >= 0x20263
@@ -317,21 +361,29 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 #    endif // KERNEL_VERSION_NUMBER >= 0x30300 || NCS_VERSION_NUMBER >= 0x20263
 
 SHELL_SUBCMD_DICT_SET_CREATE(
-        sub_anjay_nls_cell_request,
-        cmd_anjay_nls_cell_request,
-        SUBCMD_DEF(inform_single,
-                   (void *) (uintptr_t) LOC_ASSIST_CELL_REQUEST_INFORM_SINGLE,
-                   "Inform single"),
-        SUBCMD_DEF(inform_multi,
-                   (void *) (uintptr_t) LOC_ASSIST_CELL_REQUEST_INFORM_MULTI,
-                   "Inform multiple"),
-        SUBCMD_DEF(request_single,
-                   (void *) (uintptr_t) LOC_ASSIST_CELL_REQUEST_REQUEST_SINGLE,
-                   "Request single"),
-        SUBCMD_DEF(request_multi,
-                   (void *) (uintptr_t) LOC_ASSIST_CELL_REQUEST_REQUEST_MULTI,
-                   "Request multiple"));
-#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
+        sub_anjay_nls_gf_location_request,
+        cmd_anjay_nls_gf_location_request,
+        SUBCMD_DEF(
+                inform_single,
+                (void *) (uintptr_t)
+                        ANJAY_ZEPHYR_LOC_SERVICES_GF_LOCATION_REQUEST_INFORM_SINGLE,
+                "Inform single"),
+        SUBCMD_DEF(
+                inform_multi,
+                (void *) (uintptr_t)
+                        ANJAY_ZEPHYR_LOC_SERVICES_GF_LOCATION_REQUEST_INFORM_MULTI,
+                "Inform multiple"),
+        SUBCMD_DEF(
+                request_single,
+                (void *) (uintptr_t)
+                        ANJAY_ZEPHYR_LOC_SERVICES_GF_LOCATION_REQUEST_REQUEST_SINGLE,
+                "Request single"),
+        SUBCMD_DEF(
+                request_multi,
+                (void *) (uintptr_t)
+                        ANJAY_ZEPHYR_LOC_SERVICES_GF_LOCATION_REQUEST_REQUEST_MULTI,
+                "Request multiple"));
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
         sub_anjay,
@@ -340,21 +392,23 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 #ifdef WITH_ANJAY_ZEPHYR_CONFIG
         SHELL_CMD(config, &sub_anjay_config, "Configure Anjay params", NULL),
 #endif // WITH_ANJAY_ZEPHYR_CONFIG
-#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
-        SHELL_CMD(nls_cell_request,
-                  &sub_anjay_nls_cell_request,
-                  "Make a cell-based location request to Nordic Location "
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+        SHELL_CMD(nls_gf_location_request,
+                  &sub_anjay_nls_gf_location_request,
+                  "Make a ground fix location request to Nordic Location "
                   "Services",
                   NULL),
-#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_MANUAL_CELL_BASED
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
         SHELL_CMD(nls_agps_request,
                   NULL,
-                  "Make a manual A-GPS request to Nordic Location Services",
+                  "Make a manual A-GPS request to Nordic Location Services, "
+                  "user can provide minimum elevation angle for visible "
+                  "satellites as an additional argument",
                   cmd_anjay_nls_agps_request),
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 #ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE
-        SHELL_CMD(_anjay_zephyr_persistence_purge,
+        SHELL_CMD(persistence_purge,
                   NULL,
                   "Purges persisted Anjay state",
                   cmd_anjay_persistence_purge),

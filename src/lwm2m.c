@@ -37,12 +37,12 @@
 #include "config.h"
 #include "firmware_update.h"
 #include "gps.h"
+#include "location_services.h"
 #include "lwm2m_internal.h"
-#include "persistence.h"
-#include "utils.h"
-
 #include "network/network.h"
 #include "objects/objects.h"
+#include "persistence.h"
+#include "utils.h"
 
 #ifdef CONFIG_DATE_TIME
 #    include <date_time.h>
@@ -52,16 +52,24 @@
 #    include "nrf_lc_info.h"
 #endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
 
+#ifdef CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+#    include "afu/nrf9160/afu_nrf9160.h"
+#endif // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+
 static const anjay_dm_object_def_t **device_obj;
 
 #ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
 const anjay_dm_object_def_t **anjay_zephyr_ecid_obj;
-static const anjay_dm_object_def_t **conn_mon_obj;
+const anjay_dm_object_def_t **anjay_zephyr_conn_mon_obj;
 #endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
 
-#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
-const anjay_dm_object_def_t **anjay_zephyr_loc_assist_obj;
-#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+const anjay_dm_object_def_t **anjay_zephyr_ground_fix_location_obj;
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
+const anjay_dm_object_def_t **anjay_zephyr_gnss_assistance_obj;
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
 
 #define RETRY_SYNC_CLOCK_DELAY_TIME_S 1
 
@@ -180,13 +188,18 @@ static void deinitialize_anjay(anjay_t *anjay) {
     _anjay_zephyr_three_axis_sensors_remove();
 
 #ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
-    _anjay_zephyr_conn_mon_object_release(&conn_mon_obj);
+    _anjay_zephyr_conn_mon_object_release(&anjay_zephyr_conn_mon_obj);
     _anjay_zephyr_ecid_object_release(&anjay_zephyr_ecid_obj);
 #endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
 
-#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
-    _anjay_zephyr_loc_assist_object_release(&anjay_zephyr_loc_assist_obj);
-#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+    _anjay_zephyr_ground_fix_location_object_release(
+            &anjay_zephyr_ground_fix_location_obj);
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
+    _anjay_zephyr_gnss_assistance_object_release(
+            &anjay_zephyr_gnss_assistance_obj);
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
 
     _anjay_zephyr_device_object_release(&device_obj);
 
@@ -458,6 +471,13 @@ static anjay_t *initialize_anjay(void) {
     }
 #endif // CONFIG_ANJAY_ZEPHYR_FOTA
 
+#ifdef CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+    if (_anjay_zephyr_afu_nrf9160_install(anjay)) {
+        LOG_ERR("Failed to initialize advanced fw update module");
+        goto error;
+    }
+#endif // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+
     device_obj = _anjay_zephyr_device_object_create();
     if (!device_obj || anjay_register_object(anjay, device_obj)) {
         LOG_ERR("Failed to register Device object");
@@ -469,9 +489,10 @@ static anjay_t *initialize_anjay(void) {
 
     _anjay_zephyr_nrf_lc_info_get(&nrf_lc_info);
 
-    conn_mon_obj = _anjay_zephyr_conn_mon_object_create(&nrf_lc_info);
-    if (conn_mon_obj) {
-        anjay_register_object(anjay, conn_mon_obj);
+    anjay_zephyr_conn_mon_obj =
+            _anjay_zephyr_conn_mon_object_create(&nrf_lc_info);
+    if (anjay_zephyr_conn_mon_obj) {
+        anjay_register_object(anjay, anjay_zephyr_conn_mon_obj);
     }
 
     anjay_zephyr_ecid_obj = _anjay_zephyr_ecid_object_create(&nrf_lc_info);
@@ -482,11 +503,24 @@ static anjay_t *initialize_anjay(void) {
 #endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
 
 #ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
-    anjay_zephyr_loc_assist_obj = _anjay_zephyr_loc_assist_object_create();
-    if (anjay_zephyr_loc_assist_obj) {
-        anjay_register_object(anjay, anjay_zephyr_loc_assist_obj);
-    }
+    _anjay_zephyr_location_services_init();
 #endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+    anjay_zephyr_ground_fix_location_obj =
+            _anjay_zephyr_ground_fix_location_object_create();
+    if (anjay_zephyr_ground_fix_location_obj) {
+        anjay_register_object(anjay, anjay_zephyr_ground_fix_location_obj);
+    }
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
+    anjay_zephyr_gnss_assistance_obj =
+            _anjay_zephyr_gnss_assistance_object_create();
+    if (anjay_zephyr_gnss_assistance_obj) {
+        anjay_register_object(anjay, anjay_zephyr_gnss_assistance_obj);
+    }
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
+
     if (execute_user_callback(anjay, ANJAY_ZEPHYR_LWM2M_CALLBACK_REASON_INIT)) {
         goto error;
     }
@@ -496,7 +530,6 @@ static anjay_t *initialize_anjay(void) {
         return anjay;
     }
 #endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE
-
 #ifdef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
     if (!_anjay_zephyr_restore_anjay_from_factory_provisioning(anjay)) {
         return anjay;
@@ -569,12 +602,53 @@ void _anjay_zephyr_sched_update_anjay_network_bearer(void) {
 static void update_objects_nrf_lc_info(anjay_t *anjay) {
     struct anjay_zephyr_nrf_lc_info nrf_lc_info;
     if (_anjay_zephyr_nrf_lc_info_get_if_changed(&nrf_lc_info)) {
-        _anjay_zephyr_conn_mon_object_update(anjay, conn_mon_obj, &nrf_lc_info);
+        _anjay_zephyr_conn_mon_object_update(anjay, anjay_zephyr_conn_mon_obj,
+                                             &nrf_lc_info);
         _anjay_zephyr_ecid_object_update(anjay, anjay_zephyr_ecid_obj,
                                          &nrf_lc_info);
     }
 }
 #endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+#ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
+static bool agps_requested;
+
+static void
+agps_request_cb(anjay_zephyr_location_services_request_result_t result) {
+    static uint32_t exponential_backoff;
+    static uint32_t request_result_failed_in_row;
+    if (result == ANJAY_ZEPHYR_LOCATION_SERVICES_SUCCESSFUL) {
+        _anjay_zephyr_gps_clear_modem_agps_request_mask();
+        exponential_backoff = 0;
+        request_result_failed_in_row = 0;
+        agps_requested = false;
+    } else if (result != ANJAY_ZEPHYR_LOCATION_SERVICES_PERMANENT_FAILURE
+               && _anjay_zephyr_gps_fetch_modem_agps_request_mask()) {
+        exponential_backoff = _anjay_zephyr_location_services_calculate_backoff(
+                request_result_failed_in_row++);
+
+        LOG_WRN("A-GPS request failed, trying again with exponential backoff "
+                "%" PRIu32 "s",
+                exponential_backoff);
+
+        SYNCHRONIZED(anjay_zephyr_global_anjay_mutex) {
+            struct anjay_zephyr_agps_request_job_args args = {
+                .anjay = anjay_zephyr_global_anjay,
+                .cb = agps_request_cb,
+                .request_mask =
+                        _anjay_zephyr_gps_fetch_modem_agps_request_mask(),
+                .exponential_backoff = true
+            };
+
+            AVS_SCHED_DELAYED(anjay_get_scheduler(args.anjay), NULL,
+                              avs_time_duration_from_scalar(exponential_backoff,
+                                                            AVS_TIME_S),
+                              _anjay_zephyr_agps_request_job, &args,
+                              sizeof(args));
+        }
+    }
+}
+
+#endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 
 static void update_internal_objects_and_persistence(avs_sched_t *sched,
                                                     const void *anjay_ptr) {
@@ -589,10 +663,11 @@ static void update_internal_objects_and_persistence(avs_sched_t *sched,
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
     uint32_t request_mask = _anjay_zephyr_gps_fetch_modem_agps_request_mask();
 
-    if (request_mask) {
+    if (request_mask && !agps_requested
+            && !_anjay_zephyr_send_agps_request(anjay, agps_request_cb,
+                                                request_mask, true)) {
         LOG_INF("Modem requests A-GPS data");
-        _anjay_zephyr_loc_assist_object_send_agps_request(
-                anjay, anjay_zephyr_loc_assist_obj, request_mask);
+        agps_requested = true;
     }
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 
@@ -686,6 +761,12 @@ static void run_anjay(void *arg1, void *arg2, void *arg3) {
         }
 #endif // CONFIG_ANJAY_ZEPHYR_FOTA
 
+#ifdef CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+        if (_anjay_zephyr_afu_nrf9160_requested()) {
+            _anjay_zephyr_afu_nrf9160_reboot();
+        }
+#endif // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+
     disconnect:
         _anjay_zephyr_network_disconnect();
     }
@@ -722,6 +803,11 @@ static int anjay_zephyr_lwm2m_init(void) {
 #ifdef CONFIG_ANJAY_ZEPHYR_FOTA
     _anjay_zephyr_fw_update_apply();
 #endif // CONFIG_ANJAY_ZEPHYR_FOTA
+
+#ifdef CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+    _anjay_zephyr_afu_nrf9160_application_apply();
+    _anjay_zephyr_afu_nrf9160_modem_apply();
+#endif // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
 
 #ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
     if (_anjay_zephyr_initialize_nrf_lc_info_listener()) {
@@ -771,17 +857,18 @@ int anjay_zephyr_lwm2m_start(void) {
         LOG_INF("Starting Anjay");
 
         atomic_store(&anjay_zephyr_anjay_running, true);
-
         SYNCHRONIZED(anjay_thread_running_mutex) {
-            if (!k_thread_create(&anjay_thread, anjay_stack,
-                                 CONFIG_ANJAY_ZEPHYR_THREAD_STACK_SIZE,
-                                 run_anjay, NULL, NULL, NULL,
-                                 CONFIG_ANJAY_ZEPHYR_THREAD_PRIORITY, 0,
-                                 K_NO_WAIT)) {
+            k_tid_t tid;
+            if (!(tid = k_thread_create(&anjay_thread, anjay_stack,
+                                        CONFIG_ANJAY_ZEPHYR_THREAD_STACK_SIZE,
+                                        run_anjay, NULL, NULL, NULL,
+                                        CONFIG_ANJAY_ZEPHYR_THREAD_PRIORITY, 0,
+                                        K_NO_WAIT))) {
                 LOG_ERR("Failed to create Anjay thread");
                 atomic_store(&anjay_zephyr_anjay_running, false);
                 return -1;
             }
+            k_thread_name_set(tid, "Anjay Zephyr");
             atomic_store(&anjay_thread_running, true);
         }
     } else {

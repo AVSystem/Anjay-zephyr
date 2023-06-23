@@ -18,6 +18,11 @@
 
 #include <modem/lte_lc.h>
 
+#if defined(CONFIG_LTE_LINK_CONTROL) && !defined(CONFIG_NRF_MODEM_LIB_SYS_INIT)
+#    include <modem/nrf_modem_lib.h>
+#endif // defined(CONFIG_LTE_LINK_CONTROL) &&
+       // !defined(CONFIG_NRF_MODEM_LIB_SYS_INIT)
+
 #include "network.h"
 #include "network_internal.h"
 
@@ -41,13 +46,34 @@ static void lte_evt_handler(const struct lte_lc_evt *const evt) {
 }
 
 int _anjay_zephyr_network_internal_platform_initialize(void) {
-    int ret = lte_lc_init();
+    int ret;
 
-    if (!ret) {
-        lte_lc_register_handler(lte_evt_handler);
+#if defined(CONFIG_LTE_LINK_CONTROL) && !defined(CONFIG_NRF_MODEM_LIB_SYS_INIT)
+    ret = nrf_modem_lib_init(NORMAL_MODE);
+    if (ret) {
+#    ifdef CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+        // nrf_modem_init (called indirectly) returns a positive code in case
+        // there was a modem DFU attempt (see
+        // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/2.3.0/nrfxlib/nrf_modem/doc/delta_dfu.html#checking-the-result-of-the-update),
+        // those codes will be handled appropriately in
+        // _anjay_zephyr_afu_nrf9160_modem_apply(), so immediately return a 0
+        // instead
+        return ret < 0 ? ret : 0;
+#    else  // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+        return ret;
+#    endif // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+    }
+#endif // defined(CONFIG_LTE_LINK_CONTROL) &&
+       // !defined(CONFIG_NRF_MODEM_LIB_SYS_INIT)
+
+    ret = lte_lc_init();
+    if (ret) {
+        return ret;
     }
 
-    return ret;
+    lte_lc_register_handler(lte_evt_handler);
+
+    return 0;
 }
 
 int _anjay_zephyr_network_connect_async(void) {

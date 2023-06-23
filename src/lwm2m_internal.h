@@ -26,12 +26,17 @@ extern anjay_t *volatile anjay_zephyr_global_anjay;
 extern struct k_mutex anjay_zephyr_global_anjay_mutex;
 extern volatile atomic_bool anjay_zephyr_anjay_running;
 
-#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
-extern const anjay_dm_object_def_t **anjay_zephyr_loc_assist_obj;
-#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
-
 #ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
 extern const anjay_dm_object_def_t **anjay_zephyr_ecid_obj;
+extern const anjay_dm_object_def_t **anjay_zephyr_conn_mon_obj;
 #endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+extern const anjay_dm_object_def_t **anjay_zephyr_ground_fix_location_obj;
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
+extern const anjay_dm_object_def_t **anjay_zephyr_gnss_assistance_obj;
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
 
 void _anjay_zephyr_sched_update_anjay_network_bearer(void);

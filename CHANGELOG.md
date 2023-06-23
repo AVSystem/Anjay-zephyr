@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.4.1 (June 23rd, 2023)
+
+### Features
+- (commercial feature only) Added support for bootstrapping from SIM card on
+  nRF9160-based devices
+- Added support for nRF700x Wi-FI IC
+- Added Light Control object for LED handling
+- Added persistence of attribute storage
+- Added support for FOTA of application and modem firmware for nRF9160 using
+  experimental Advanced Firmware Update object (/33629)
+- (commercial feature only) Added support for Core Peristence
+
+### Improvements
+- Updated Anjay to version 3.4.1
+- Fixed avs_commons and anjay_zephyr configurations dependencies
+- Updated Nordic Location Services-related APIs and object implementations to match new object definitions and server-side behavior
+- Kconfig options which associated values can be changed during runtime have been marked as defaults
+- Fixed compatibility with NCS v2.3.0
+
 ## 3.3.0 (Feb 21st, 2023)
 
 ### Improvements

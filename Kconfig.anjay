@@ -89,7 +89,7 @@ menuconfig ANJAY_WITH_LOGS
 
     config ANJAY_WITH_TRACE_LOGS
         bool "Enable TRACE-level logs in Anjay, avs_commons and avs_coap."
-        default y
+        default n
         depends on ANJAY_WITH_LOGS
 
     config ANJAY_WITH_MICRO_LOGS
@@ -146,6 +146,11 @@ config ANJAY_WITH_OBSERVE
     default y
     help
       Information Reporting interface includes Observe and Notify operations
+
+config ANJAY_WITH_OBSERVE_PERSISTENCE
+    bool "Enable support for observation persistence"
+    default n
+    depends on ANJAY_WITH_OBSERVE
 
 config ANJAY_WITH_NET_STATS
     bool "Enable support for measuring amount of LwM2M traffic."
@@ -303,6 +308,11 @@ config ANJAY_WITH_MODULE_FW_UPDATE
     default y
     depends on ANJAY_WITH_DOWNLOADER
 
+config ANJAY_WITH_MODULE_ADVANCED_FW_UPDATE
+    bool "Enable advanced_fw_update module"
+    default n
+    depends on ANJAY_WITH_DOWNLOADER
+
 
 config ANJAY_WITH_MODULE_IPSO_OBJECTS
     bool "Enable IPSO objects implementation"
@@ -312,11 +322,6 @@ config ANJAY_WITH_MODULE_FACTORY_PROVISIONING
     bool "Enable factory provisioning module"
     default n
     depends on ANJAY_WITH_CBOR
-
-config ANJAY_WITH_NORDIC_LOCATION_SERVICES
-    bool "Enable Nordic location services"
-    depends on BOARD_THINGY91_NRF9160_NS || BOARD_NRF9160DK_NRF9160_NS
-    default n
 
 endif
 

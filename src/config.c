@@ -111,8 +111,9 @@ struct anjay_zephyr_app_config {
 #        endif // CONFIG_ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
 #    endif     // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 #    ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-    struct string_option gps_nrf_prio_mode_timeout;
-    char gps_nrf_prio_mode_timeout_storage[AVS_UINT_STR_BUF_SIZE(uint32_t)];
+    struct string_option gps_nrf_prio_mode_permitted;
+    char gps_nrf_prio_mode_permitted_storage
+            [GPS_NRF_PRIO_MODE_PERMITTED_STORAGE_SIZE];
     struct string_option gps_nrf_prio_mode_cooldown;
     char gps_nrf_prio_mode_cooldown_storage[AVS_UINT_STR_BUF_SIZE(uint32_t)];
 #    endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF
@@ -140,8 +141,12 @@ struct anjay_zephyr_option {
 static config_option_validate_t string_validate;
 #    endif // defined(CONFIG_WIFI) ||
            // !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
-#    ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
+#    if defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) \
+            || !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
 static config_option_validate_t flag_validate;
+#    endif // defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) ||
+           // !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
+#    ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 static config_option_validate_t psk_hex_validate;
 static config_option_validate_t security_mode_validate;
 #    endif // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
@@ -187,9 +192,9 @@ static struct anjay_zephyr_option string_options[] = {
 #        endif // CONFIG_ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
 #    endif     // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 #    ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-    { AVS_QUOTE_MACRO(OPTION_KEY_GPS_NRF_PRIO_MODE_TIMEOUT),
-      "GPS priority mode timeout", &app_config.gps_nrf_prio_mode_timeout,
-      sizeof(app_config.gps_nrf_prio_mode_timeout_storage), uint32_validate },
+    { AVS_QUOTE_MACRO(OPTION_KEY_GPS_NRF_PRIO_MODE_PERMITTED),
+      "GPS priority mode permitted", &app_config.gps_nrf_prio_mode_permitted,
+      sizeof(app_config.gps_nrf_prio_mode_permitted_storage), flag_validate },
     { AVS_QUOTE_MACRO(OPTION_KEY_GPS_NRF_PRIO_MODE_COOLDOWN),
       "GPS priority mode cooldown", &app_config.gps_nrf_prio_mode_cooldown,
       sizeof(app_config.gps_nrf_prio_mode_cooldown_storage), uint32_validate },
@@ -327,10 +332,8 @@ void _anjay_zephyr_config_default_init(void) {
                       psk_key_length_check);
 #    endif // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 #    ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-    AVS_STATIC_ASSERT(sizeof(GPS_NRF_PRIO_MODE_TIMEOUT)
-                              <= AVS_UINT_STR_BUF_SIZE(uint32_t),
-                      gps_timeout_length_check);
-    AVS_STATIC_ASSERT(sizeof(GPS_NRF_PRIO_MODE_COOLDOWN)
+    AVS_STATIC_ASSERT(sizeof(AVS_QUOTE_MACRO(
+                              CONFIG_ANJAY_ZEPHYR_GPS_NRF_PRIO_MODE_COOLDOWN))
                               <= AVS_UINT_STR_BUF_SIZE(uint32_t),
                       gps_cooldown_length_check);
 #    endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF
@@ -368,13 +371,17 @@ void _anjay_zephyr_config_default_init(void) {
             .bootstrap.null_terminated = false,
 #    endif // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 #    ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-            .gps_nrf_prio_mode_timeout_storage = GPS_NRF_PRIO_MODE_TIMEOUT,
-            .gps_nrf_prio_mode_timeout.length =
-                    sizeof(GPS_NRF_PRIO_MODE_TIMEOUT),
-            .gps_nrf_prio_mode_timeout.null_terminated = true,
-            .gps_nrf_prio_mode_cooldown_storage = GPS_NRF_PRIO_MODE_COOLDOWN,
-            .gps_nrf_prio_mode_cooldown.length =
-                    sizeof(GPS_NRF_PRIO_MODE_COOLDOWN),
+#        ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_PRIO_MODE_PERMITTED
+            .gps_nrf_prio_mode_permitted_storage = { 'y' },
+#        else  // CONFIG_ANJAY_ZEPHYR_GPS_NRF_PRIO_MODE_PERMITTED
+            .gps_nrf_prio_mode_permitted_storage = { 'n' },
+#        endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_PRIO_MODE_PERMITTED
+            .gps_nrf_prio_mode_permitted.length = 1,
+            .gps_nrf_prio_mode_permitted.null_terminated = false,
+            .gps_nrf_prio_mode_cooldown_storage = AVS_QUOTE_MACRO(
+                    CONFIG_ANJAY_ZEPHYR_GPS_NRF_PRIO_MODE_COOLDOWN),
+            .gps_nrf_prio_mode_cooldown.length = sizeof(AVS_QUOTE_MACRO(
+                    CONFIG_ANJAY_ZEPHYR_GPS_NRF_PRIO_MODE_COOLDOWN)),
             .gps_nrf_prio_mode_cooldown.null_terminated = true,
 #    endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF
 #    if defined(CONFIG_ANJAY_ZEPHYR_PERSISTENCE) \
@@ -429,8 +436,8 @@ void _anjay_zephyr_config_default_init(void) {
 #        endif // CONFIG_ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
 #    endif     // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 #    ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-        app_config.gps_nrf_prio_mode_timeout.value =
-                app_config.gps_nrf_prio_mode_timeout_storage;
+        app_config.gps_nrf_prio_mode_permitted.value =
+                app_config.gps_nrf_prio_mode_permitted_storage;
         app_config.gps_nrf_prio_mode_cooldown.value =
                 app_config.gps_nrf_prio_mode_cooldown_storage;
 #    endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF
@@ -730,9 +737,11 @@ int anjay_zephyr_config_get_private_key(char *buf, size_t buf_capacity) {
 #endif     // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-uint32_t anjay_zephyr_config_get_gps_nrf_prio_mode_timeout(void) {
-    uint32_t ret = 0;
-    parse_uint32(app_config.gps_nrf_prio_mode_timeout.value, &ret);
+bool anjay_zephyr_config_is_gps_nrf_prio_mode_permitted(void) {
+    bool ret = false;
+    SYNCHRONIZED(config_mutex) {
+        ret = app_config.gps_nrf_prio_mode_permitted.value[0] == 'y';
+    }
     return ret;
 }
 
@@ -776,7 +785,8 @@ static int string_validate(const struct shell *shell,
         * !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)              \
         */
 
-#ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
+#if defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) \
+        || !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
 static int flag_validate(const struct shell *shell,
                          const char *value,
                          size_t value_len,
@@ -788,7 +798,10 @@ static int flag_validate(const struct shell *shell,
 
     return 0;
 }
+#endif // defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) ||
+       // !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
 
+#ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 static int psk_hex_validate(const struct shell *shell,
                             const char *value,
                             size_t value_len,

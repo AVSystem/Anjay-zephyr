@@ -159,11 +159,11 @@ int anjay_zephyr_config_get_private_key(char *buf, size_t buf_capacity);
 
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
 /**
- * Get the GPS priority mode timeout stored in the settings.
+ * Check if the GPS priority mode is permitted.
  *
- * @return              GPS priority mode timeout.
+ * @return              True if GPS priority mode is permitted.
  */
-uint32_t anjay_zephyr_config_get_gps_nrf_prio_mode_timeout(void);
+bool anjay_zephyr_config_is_gps_nrf_prio_mode_permitted(void);
 
 /**
  * Get the GPS priority mode cooldown stored in the settings.

@@ -21,12 +21,12 @@
 #include <stdint.h>
 #include <string.h>
 
-#ifdef CONFIG_ANJAY_ZEPHYR_FOTA
+#ifdef CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 #    include <zephyr/dfu/mcuboot.h>
 #    include <zephyr/storage/flash_map.h>
 
 #    include <stdio.h>
-#endif // CONFIG_ANJAY_ZEPHYR_FOTA
+#endif // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 
 #ifdef CONFIG_NRF_MODEM_LIB
 #    include <modem/modem_info.h>
@@ -62,7 +62,7 @@ int _anjay_zephyr_get_device_id(struct anjay_zephyr_device_id *out_id) {
 #endif // CONFIG_NRF_MODEM_LIB
 }
 
-#ifdef CONFIG_ANJAY_ZEPHYR_FOTA
+#ifdef CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 static int get_fw_version(char *out_buf, size_t buf_size, uint8_t area_id) {
     // apparently BOOT_IMG_VER_STRLEN_MAX accounts for the nullchar too
     if (buf_size < BOOT_IMG_VER_STRLEN_MAX) {
@@ -112,7 +112,7 @@ int _anjay_zephyr_get_fw_version_image_1(char *out_buf, size_t buf_size) {
 #    endif
     return get_fw_version(out_buf, buf_size, area_id);
 }
-#endif // CONFIG_ANJAY_ZEPHYR_FOTA
+#endif // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 
 #if defined(CONFIG_NRF_MODEM_LIB) && defined(CONFIG_MODEM_KEY_MGMT)
 int _anjay_zephyr_tls_session_cache_purge(void) {

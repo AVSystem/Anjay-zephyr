@@ -20,9 +20,9 @@
 
 #include <zephyr/net/sntp.h>
 
-#ifdef CONFIG_ANJAY_ZEPHYR_FOTA
+#ifdef CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 #    include <zephyr/dfu/mcuboot.h>
-#endif // CONFIG_ANJAY_ZEPHYR_FOTA
+#endif // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 
 struct anjay_zephyr_device_id {
     // 96 bits as hex + NULL-byte
@@ -31,10 +31,10 @@ struct anjay_zephyr_device_id {
 
 int _anjay_zephyr_get_device_id(struct anjay_zephyr_device_id *out_id);
 
-#ifdef CONFIG_ANJAY_ZEPHYR_FOTA
+#ifdef CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 int _anjay_zephyr_get_fw_version_image_0(char *out_buf, size_t buf_size);
 int _anjay_zephyr_get_fw_version_image_1(char *out_buf, size_t buf_size);
-#endif // CONFIG_ANJAY_ZEPHYR_FOTA
+#endif // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 
 #define SYNCHRONIZED(Mtx)                                          \
     for (int _synchronized_exit = k_mutex_lock(&(Mtx), K_FOREVER); \

@@ -43,6 +43,7 @@ if(CONFIG_ANJAY)
             src/objects/buzzer.c
             src/objects/device.c
             src/objects/led_color_light.c
+            src/objects/light_control.c
             src/objects/location.c
             src/objects/objects.h
             src/objects/push_button.c
@@ -71,20 +72,37 @@ if(CONFIG_ANJAY)
             list(APPEND CLIENT_SOURCES
                  src/nrf_lc_info.c
                  src/nrf_lc_info.h
-                 src/nrf_lc_jobs.c
-                 src/nrf_lc_jobs.h
                  src/objects/conn_mon.c
                  src/objects/ecid.c)
         endif()
 
+        if(CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION)
+            list(APPEND CLIENT_SOURCES
+            src/objects/ground_fix_location.c)
+        endif()
+
+        if(CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE)
+            list(APPEND CLIENT_SOURCES
+            src/objects/gnss_assistance.c)
+        endif()
+
         if(CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES)
             list(APPEND CLIENT_SOURCES
-                 src/objects/loc_assist.c)
+                 src/location_services.c
+                 src/location_services.h)
         endif()
 
         if(CONFIG_ANJAY_ZEPHYR_FOTA)
             list(APPEND CLIENT_SOURCES
                  src/firmware_update.c)
+        endif()
+
+        if(CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160)
+            list(APPEND CLIENT_SOURCES
+                 src/afu/nrf9160/afu_nrf9160_application.c
+                 src/afu/nrf9160/afu_nrf9160_modem.c
+                 src/afu/nrf9160/afu_nrf9160.c
+                 src/afu/nrf9160/afu_nrf9160.h)
         endif()
 
         if(CONFIG_LTE_LINK_CONTROL)
@@ -99,6 +117,9 @@ if(CONFIG_ANJAY)
         elseif(CONFIG_WIFI_ESWIFI)
             list(APPEND CLIENT_SOURCES
                  src/network/network_eswifi.c)
+        elseif(CONFIG_WIFI_NRF700X)
+            list(APPEND CLIENT_SOURCES
+                 src/network/network_nrf700x.c)
         elseif(CONFIG_WIFI)
             list(APPEND CLIENT_SOURCES
                  src/network/network_wifi.c)
@@ -145,4 +166,4 @@ if(CONFIG_ANJAY)
         target_compile_definitions(${ZEPHYR_CURRENT_LIBRARY} PRIVATE NDEBUG)
     endif()
 
-    endif()
+endif()

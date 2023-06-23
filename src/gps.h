@@ -53,6 +53,7 @@ int _anjay_zephyr_initialize_gps(void);
 
 #    ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 uint32_t _anjay_zephyr_gps_fetch_modem_agps_request_mask(void);
+void _anjay_zephyr_gps_clear_modem_agps_request_mask(void);
 #    endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 
 #endif // CONFIG_ANJAY_ZEPHYR_GPS

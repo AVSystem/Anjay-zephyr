@@ -26,9 +26,13 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/kernel.h>
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
+#    include <zephyr/logging/log.h>
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
 
 #include "../nrf_lc_info.h"
 #include "objects.h"
+#include "utils.h"
 
 #define LTE_FDD_BEARER 6
 #define NB_IOT_BEARER 7
@@ -38,6 +42,17 @@
  * guide for more information.
  */
 #define RSRP_ADJ(rsrp) ((rsrp) - (((rsrp) <= 0) ? 140 : 141))
+
+#define SEND_RES_PATH(Oid, Iid, Rid) \
+    {                                \
+        .oid = (Oid),                \
+        .iid = (Iid),                \
+        .rid = (Rid)                 \
+    }
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
+LOG_MODULE_REGISTER(anjay_zephyr_conn_mon);
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
 
 struct conn_mon_object {
     const anjay_dm_object_def_t *def;
@@ -50,6 +65,7 @@ struct conn_mon_object {
     uint32_t cell_id;
     uint32_t area_code;
     char ip_address[MODEM_INFO_MAX_RESPONSE_SIZE];
+    struct k_mutex update_mutex;
 };
 
 static inline struct conn_mon_object *
@@ -217,7 +233,7 @@ const anjay_dm_object_def_t **_anjay_zephyr_conn_mon_object_create(
                           ip_address_fields_compatible);
         memcpy(obj->ip_address, nrf_lc_info->ip_addr, sizeof(obj->ip_address));
     }
-
+    k_mutex_init(&obj->update_mutex);
     return &obj->def;
 }
 
@@ -230,52 +246,56 @@ void _anjay_zephyr_conn_mon_object_update(
     }
 
     struct conn_mon_object *obj = get_obj(def);
+    SYNCHRONIZED(obj->update_mutex) {
+        struct lte_lc_cell const *cell_info = &nrf_lc_info->cells.current_cell;
 
-    struct lte_lc_cell const *cell_info = &nrf_lc_info->cells.current_cell;
+        if (cell_info->id != LTE_LC_CELL_EUTRAN_ID_INVALID) {
+            if (nrf_lc_info->lte_mode != obj->lte_mode) {
+                obj->lte_mode = nrf_lc_info->lte_mode;
+                anjay_notify_changed(anjay, obj->def->oid, 0,
+                                     RID_CONN_MON_NETWORK_BEARER);
+            }
 
-    if (cell_info->id != LTE_LC_CELL_EUTRAN_ID_INVALID) {
-        if (nrf_lc_info->lte_mode != obj->lte_mode) {
-            obj->lte_mode = nrf_lc_info->lte_mode;
-            anjay_notify_changed(anjay, obj->def->oid, 0,
-                                 RID_CONN_MON_NETWORK_BEARER);
-        }
+            if (cell_info->rsrp != obj->rsrp) {
+                obj->rsrp = cell_info->rsrp;
+                anjay_notify_changed(anjay, obj->def->oid, 0, RID_CONN_MON_RSS);
+            }
 
-        if (cell_info->rsrp != obj->rsrp) {
-            obj->rsrp = cell_info->rsrp;
-            anjay_notify_changed(anjay, obj->def->oid, 0, RID_CONN_MON_RSS);
-        }
+            if (cell_info->rsrq != obj->rsrq) {
+                obj->rsrq = cell_info->rsrq;
+                anjay_notify_changed(anjay, obj->def->oid, 0,
+                                     RID_CONN_MON_LINK_QUALITY);
+            }
 
-        if (cell_info->rsrq != obj->rsrq) {
-            obj->rsrq = cell_info->rsrq;
-            anjay_notify_changed(anjay, obj->def->oid, 0,
-                                 RID_CONN_MON_LINK_QUALITY);
-        }
+            if (strcmp(obj->ip_address, nrf_lc_info->ip_addr)) {
+                memcpy(obj->ip_address, nrf_lc_info->ip_addr,
+                       sizeof(obj->ip_address));
+                anjay_notify_changed(anjay, obj->def->oid, 0,
+                                     RID_CONN_MON_IP_ADDRESSES);
+            }
 
-        if (strcmp(obj->ip_address, nrf_lc_info->ip_addr)) {
-            memcpy(obj->ip_address, nrf_lc_info->ip_addr,
-                   sizeof(obj->ip_address));
-            anjay_notify_changed(anjay, obj->def->oid, 0,
-                                 RID_CONN_MON_IP_ADDRESSES);
-        }
+            if (cell_info->id != obj->cell_id) {
+                obj->cell_id = cell_info->id;
+                anjay_notify_changed(anjay, obj->def->oid, 0,
+                                     RID_CONN_MON_CELL_ID);
+            }
 
-        if (cell_info->id != obj->cell_id) {
-            obj->cell_id = cell_info->id;
-            anjay_notify_changed(anjay, obj->def->oid, 0, RID_CONN_MON_CELL_ID);
-        }
+            if (cell_info->mnc != obj->mnc) {
+                obj->mnc = cell_info->mnc;
+                anjay_notify_changed(anjay, obj->def->oid, 0,
+                                     RID_CONN_MON_SMNC);
+            }
 
-        if (cell_info->mnc != obj->mnc) {
-            obj->mnc = cell_info->mnc;
-            anjay_notify_changed(anjay, obj->def->oid, 0, RID_CONN_MON_SMNC);
-        }
+            if (cell_info->mcc != obj->mcc) {
+                obj->mcc = cell_info->mcc;
+                anjay_notify_changed(anjay, obj->def->oid, 0,
+                                     RID_CONN_MON_SMCC);
+            }
 
-        if (cell_info->mcc != obj->mcc) {
-            obj->mcc = cell_info->mcc;
-            anjay_notify_changed(anjay, obj->def->oid, 0, RID_CONN_MON_SMCC);
-        }
-
-        if (cell_info->tac != obj->area_code) {
-            obj->area_code = cell_info->tac;
-            anjay_notify_changed(anjay, obj->def->oid, 0, RID_CONN_MON_LAC);
+            if (cell_info->tac != obj->area_code) {
+                obj->area_code = cell_info->tac;
+                anjay_notify_changed(anjay, obj->def->oid, 0, RID_CONN_MON_LAC);
+            }
         }
     }
 }
@@ -289,3 +309,34 @@ void _anjay_zephyr_conn_mon_object_release(
         *out_def = NULL;
     }
 }
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
+int _anjay_zephyr_conn_mon_object_add_to_batch(
+        anjay_t *anjay,
+        anjay_send_batch_builder_t *builder,
+        const anjay_dm_object_def_t *const *obj_ptr) {
+    static const anjay_send_resource_path_t conn_mon_paths[] = {
+        SEND_RES_PATH(OID_CONN_MON, 0, RID_CONN_MON_RSS),
+        SEND_RES_PATH(OID_CONN_MON, 0, RID_CONN_MON_LINK_QUALITY),
+        SEND_RES_PATH(OID_CONN_MON, 0, RID_CONN_MON_CELL_ID),
+        SEND_RES_PATH(OID_CONN_MON, 0, RID_CONN_MON_SMNC),
+        SEND_RES_PATH(OID_CONN_MON, 0, RID_CONN_MON_SMCC),
+        SEND_RES_PATH(OID_CONN_MON, 0, RID_CONN_MON_LAC)
+    };
+
+    int result = -1;
+    struct conn_mon_object *obj = get_obj(obj_ptr);
+    assert(obj);
+
+    SYNCHRONIZED(obj->update_mutex) {
+        if ((result = anjay_send_batch_data_add_current_multiple(
+                     builder, anjay, conn_mon_paths,
+                     AVS_ARRAY_SIZE(conn_mon_paths)))) {
+            LOG_ERR("Failed to add Connectivity Monitoring "
+                    "required resources to batch, err: %d",
+                    result);
+        }
+    }
+    return result;
+}
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES

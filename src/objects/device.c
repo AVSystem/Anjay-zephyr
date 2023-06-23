@@ -119,9 +119,9 @@ struct device_object {
     const anjay_dm_object_def_t *def;
 
     struct anjay_zephyr_device_id serial_number;
-#ifdef CONFIG_ANJAY_ZEPHYR_FOTA
+#ifdef CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
     char fw_version[BOOT_IMG_VER_STRLEN_MAX];
-#endif // CONFIG_ANJAY_ZEPHYR_FOTA
+#endif // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
     bool do_reboot;
 };
 
@@ -187,11 +187,11 @@ static int resource_read(anjay_t *anjay,
 
     case RID_FIRMWARE_VERSION:
         assert(riid == ANJAY_ID_INVALID);
-#ifdef CONFIG_ANJAY_ZEPHYR_FOTA
+#ifdef CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
         return anjay_ret_string(ctx, obj->fw_version);
-#else  // CONFIG_ANJAY_ZEPHYR_FOTA
+#else  // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
         return anjay_ret_string(ctx, CONFIG_ANJAY_ZEPHYR_VERSION);
-#endif // CONFIG_ANJAY_ZEPHYR_FOTA
+#endif // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 
     case RID_ERROR_CODE:
         assert(riid == 0);
@@ -317,12 +317,12 @@ const anjay_dm_object_def_t **_anjay_zephyr_device_object_create(void) {
         obj->serial_number.value[0] = '\0';
     }
 
-#ifdef CONFIG_ANJAY_ZEPHYR_FOTA
+#ifdef CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
     if (_anjay_zephyr_get_fw_version_image_0(obj->fw_version,
                                              sizeof(obj->fw_version))) {
         obj->fw_version[0] = '\0';
     }
-#endif // CONFIG_ANJAY_ZEPHYR_FOTA
+#endif // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
 
     return &obj->def;
 }

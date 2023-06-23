@@ -39,7 +39,6 @@
 LOG_MODULE_REGISTER(anjay_zephyr_gps_nrf);
 
 #define INTERRUPTED_FIXES_WARN_THRESHOLD 10
-#define PRIO_MODE_TIMEOUT K_MINUTES(5)
 
 // Suggested GPS tuning parameters come from Nordic's SDK example
 // https://github.com/nrfconnect/sdk-nrf/blob/master/samples/nrf9160/gps/src/main.c
@@ -160,10 +159,7 @@ static void incoming_pvt_work_handler(struct k_work *work) {
                                == INTERRUPTED_FIXES_WARN_THRESHOLD) {
             interrupted_fixes_in_row = 0;
 
-            uint32_t gps_prio_mode_timeout =
-                    anjay_zephyr_config_get_gps_nrf_prio_mode_timeout();
-
-            if (gps_prio_mode_timeout == 0) {
+            if (!anjay_zephyr_config_is_gps_nrf_prio_mode_permitted()) {
                 return;
             }
 
@@ -178,8 +174,11 @@ static void incoming_pvt_work_handler(struct k_work *work) {
             atomic_store(&anjay_zephyr_gps_prio_mode, true);
             _anjay_zephyr_network_internal_connection_state_changed();
 
-            k_work_schedule(&prio_mode_disable_dwork,
-                            K_SECONDS(gps_prio_mode_timeout));
+            // NOTE: As written here
+            // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/2.2.0/nrfxlib/nrf_modem/doc/gnss_interface.html#enabling-gnss-priority-mode
+            // priority mode is disabled automatically after the first fix or
+            // after 40 seconds
+            k_work_schedule(&prio_mode_disable_dwork, K_SECONDS(41));
         }
     }
 }
@@ -190,28 +189,29 @@ handle_modem_agps_request_evt(struct nrf_modem_gnss_agps_data_frame req) {
     uint32_t request_mask = 0;
 
     if (req.data_flags & NRF_MODEM_GNSS_AGPS_GPS_UTC_REQUEST) {
-        request_mask |= LOC_ASSIST_A_GPS_MASK_UTC;
+        request_mask |= LOC_SERVICES_A_GPS_MASK_UTC;
     }
     if (req.data_flags & NRF_MODEM_GNSS_AGPS_KLOBUCHAR_REQUEST) {
-        request_mask |= LOC_ASSIST_A_GPS_MASK_KLOBUCHAR;
+        request_mask |= LOC_SERVICES_A_GPS_MASK_KLOBUCHAR;
     }
     if (req.data_flags & NRF_MODEM_GNSS_AGPS_NEQUICK_REQUEST) {
-        request_mask |= LOC_ASSIST_A_GPS_MASK_NEQUICK;
+        request_mask |= LOC_SERVICES_A_GPS_MASK_NEQUICK;
     }
     if (req.data_flags & NRF_MODEM_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST) {
-        request_mask |= LOC_ASSIST_A_GPS_MASK_TOW | LOC_ASSIST_A_GPS_MASK_CLOCK;
+        request_mask |=
+                LOC_SERVICES_A_GPS_MASK_TOW | LOC_SERVICES_A_GPS_MASK_CLOCK;
     }
     if (req.data_flags & NRF_MODEM_GNSS_AGPS_POSITION_REQUEST) {
-        request_mask |= LOC_ASSIST_A_GPS_MASK_LOCATION;
+        request_mask |= LOC_SERVICES_A_GPS_MASK_LOCATION;
     }
     if (req.data_flags & NRF_MODEM_GNSS_AGPS_INTEGRITY_REQUEST) {
-        request_mask |= LOC_ASSIST_A_GPS_MASK_INTEGRITY;
+        request_mask |= LOC_SERVICES_A_GPS_MASK_INTEGRITY;
     }
     if (req.sv_mask_ephe) {
-        request_mask |= LOC_ASSIST_A_GPS_MASK_EPHEMERIS;
+        request_mask |= LOC_SERVICES_A_GPS_MASK_EPHEMERIS;
     }
     if (req.sv_mask_alm) {
-        request_mask |= LOC_ASSIST_A_GPS_MASK_ALMANAC;
+        request_mask |= LOC_SERVICES_A_GPS_MASK_ALMANAC;
     }
 
     SYNCHRONIZED(anjay_zephyr_gps_read_last_mtx) {
@@ -268,30 +268,13 @@ static int config_at(void) {
 }
 
 int _anjay_zephyr_initialize_gps(void) {
-    if (config_at()) {
-        goto error;
+    if (config_at() || nrf_modem_gnss_event_handler_set(gnss_event_handler)
+            || nrf_modem_gnss_fix_retry_set(0)
+            || nrf_modem_gnss_fix_interval_set(1) || nrf_modem_gnss_start()) {
+        LOG_ERR("Failed to initialize GPS interface");
+        return -1;
     }
-
-    int stop_result = nrf_modem_gnss_stop();
-
-    if (stop_result) {
-        // stop failed, which means that GNSS wasn't started already
-        if (nrf_modem_gnss_event_handler_set(gnss_event_handler)
-                || nrf_modem_gnss_fix_retry_set(0)
-                || nrf_modem_gnss_fix_interval_set(1)) {
-            goto error;
-        }
-    }
-
-    if (nrf_modem_gnss_start()) {
-        goto error;
-    }
-
     return 0;
-
-error:
-    LOG_ERR("Failed to initialize GPS interface");
-    return -1;
 }
 
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
@@ -301,9 +284,14 @@ uint32_t _anjay_zephyr_gps_fetch_modem_agps_request_mask(void) {
     SYNCHRONIZED(anjay_zephyr_gps_read_last_mtx) {
         if (modem_agps_request_mask) {
             result = modem_agps_request_mask;
-            modem_agps_request_mask = 0;
         }
     }
     return result;
+}
+
+void _anjay_zephyr_gps_clear_modem_agps_request_mask(void) {
+    SYNCHRONIZED(anjay_zephyr_gps_read_last_mtx) {
+        modem_agps_request_mask = 0;
+    }
 }
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS

@@ -83,7 +83,9 @@
  *
  * Only meaningful <c>WITH_AVS_COAP_OBSERVE</c> is enabled.
  */
-/* #undef WITH_AVS_COAP_OBSERVE_PERSISTENCE */
+#ifdef CONFIG_ANJAY_WITH_OBSERVE_PERSISTENCE
+#    define WITH_AVS_COAP_OBSERVE_PERSISTENCE
+#endif // CONFIG_ANJAY_WITH_OBSERVE_PERSISTENCE
 
 /**
  * Enable support for the streaming API

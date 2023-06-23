@@ -35,6 +35,10 @@
 #include "net_impl.h"
 #include "zephyr_tls_compat.h"
 
+#if __has_include("ncs_version.h")
+#    include "ncs_version.h"
+#endif // __has_include("ncs_version.h")
+
 avs_error_t _avs_crypto_initialize_global_state(void) {
     return AVS_OK;
 }
@@ -112,7 +116,14 @@ static int ensure_modem_deactivated(
         if (!result) {
             state->needs_gnss_restart = true;
         }
-        if (!result || result == -NRF_EPERM) {
+        if (!result
+                || result ==
+#    if NCS_VERSION_NUMBER >= 0x20300
+                               -NRF_EACCES
+#    else  // NCS_VERSION_NUMBER >= 0x20300
+                               -NRF_EPERM
+#    endif // NCS_VERSION_NUMBER >= 0x20300
+        ) {
             result = lte_lc_offline();
         }
     }

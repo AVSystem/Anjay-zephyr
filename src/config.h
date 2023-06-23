@@ -52,7 +52,8 @@
 #    endif // CONFIG_ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
 #endif     // CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-#    define OPTION_KEY_GPS_NRF_PRIO_MODE_TIMEOUT gps_prio_mode_timeout
+#    define GPS_NRF_PRIO_MODE_PERMITTED_STORAGE_SIZE 1
+#    define OPTION_KEY_GPS_NRF_PRIO_MODE_PERMITTED gps_prio_mode_permitted
 #    define OPTION_KEY_GPS_NRF_PRIO_MODE_COOLDOWN gps_prio_mode_cooldown
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF
 #if defined(CONFIG_ANJAY_ZEPHYR_PERSISTENCE) \
@@ -69,12 +70,6 @@
 #endif /* defined(CONFIG_WIFI) || defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) || \
         * !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)              \
         */
-
-#ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF
-#    define GPS_NRF_PRIO_MODE_TIMEOUT "300"
-
-#    define GPS_NRF_PRIO_MODE_COOLDOWN "1800"
-#endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF
 
 #ifdef WITH_ANJAY_ZEPHYR_CONFIG
 void _anjay_zephyr_config_init(void);
