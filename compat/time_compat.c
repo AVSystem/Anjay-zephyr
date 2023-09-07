@@ -17,6 +17,10 @@
 #include <avsystem/commons/avs_time.h>
 #include <zephyr/kernel.h>
 
+#ifdef CONFIG_POSIX_CLOCK
+#    include <zephyr/posix/time.h>
+#endif // CONFIG_POSIX_CLOCK
+
 #ifdef CONFIG_DATE_TIME
 #    include <date_time.h>
 #endif // CONFIG_DATE_TIME
@@ -26,11 +30,20 @@ avs_time_monotonic_t avs_time_monotonic_now(void) {
 }
 
 avs_time_real_t avs_time_real_now(void) {
-#ifdef CONFIG_DATE_TIME
+#if defined(CONFIG_DATE_TIME)
     int64_t time_ms;
     if (!date_time_now(&time_ms)) {
         return avs_time_real_from_scalar(time_ms, AVS_TIME_MS);
     }
-#endif // CONFIG_DATE_TIME
+#elif defined(CONFIG_POSIX_CLOCK)
+    struct timespec system_value;
+    avs_time_real_t result;
+    clock_gettime(CLOCK_REALTIME, &system_value);
+    result.since_real_epoch.seconds = system_value.tv_sec;
+    result.since_real_epoch.nanoseconds = (int32_t) system_value.tv_nsec;
+    return result;
+#endif // defined(CONFIG_DATE_TIME) || defined(CONFIG_POSIX_CLOCK)
+#if defined(CONFIG_DATE_TIME) || !defined(CONFIG_POSIX_CLOCK)
     return avs_time_real_from_scalar(k_uptime_get(), AVS_TIME_MS);
+#endif // defined(CONFIG_DATE_TIME) || !defined(CONFIG_POSIX_CLOCK)
 }

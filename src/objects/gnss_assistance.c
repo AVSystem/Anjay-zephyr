@@ -39,12 +39,13 @@ LOG_MODULE_REGISTER(anjay_zephyr_gnss_assistance);
 #    error "P-GPS not implemented yet"
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_P_GPS
 
+static int32_t result_code_backup;
+
 typedef struct gnss_assistance_object_struct {
     const anjay_dm_object_def_t *def;
     uint8_t assistance_data_buf[ASSISTANCE_DATA_BUF_SIZE];
     size_t assistance_data_len;
     int32_t result_code;
-    int32_t result_code_backup;
 
     uint32_t exponential_backoff;
     uint32_t positive_result_code_in_row;
@@ -74,7 +75,7 @@ static int instance_reset(anjay_t *anjay,
     if (obj->result_code > 0) {
         obj->result_code = 0;
     }
-    obj->result_code_backup = obj->result_code;
+    result_code_backup = obj->result_code;
     return 0;
 }
 
@@ -172,7 +173,7 @@ static int transaction_commit(anjay_t *anjay,
     (void) anjay;
 
     gnss_assistance_object_t *obj = get_obj(obj_ptr);
-    obj->result_code_backup = obj->result_code;
+    result_code_backup = obj->result_code;
 
     if (obj->new_result_code) {
         obj->new_result_code = false;
@@ -225,7 +226,7 @@ static int transaction_rollback(anjay_t *anjay,
 
     gnss_assistance_object_t *obj = get_obj(obj_ptr);
 
-    obj->result_code = obj->result_code_backup;
+    obj->result_code = result_code_backup;
     obj->new_result_code = false;
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
     obj->assistance_data_len = 0;
@@ -252,11 +253,8 @@ static const anjay_dm_object_def_t OBJ_DEF = {
     }
 };
 
-int32_t _anjay_zephyr_gnss_assistance_get_result_code(
-        const anjay_dm_object_def_t *const *obj_ptr) {
-    gnss_assistance_object_t *obj = get_obj(obj_ptr);
-    assert(obj);
-    return obj->result_code_backup;
+int32_t _anjay_zephyr_gnss_assistance_get_result_code(void) {
+    return result_code_backup;
 }
 
 uint32_t _anjay_zephyr_gnss_assistance_get_exponential_backoff_value(

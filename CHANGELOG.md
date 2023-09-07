@@ -1,16 +1,38 @@
 # Changelog
 
+## 3.5.0 (September 7th, 2023)
+
+### Features
+- (commercial feature only) Added support for enabling/disabling bootstrapping from a SIM card in runtime
+- Added support for T-Mobile DevEdge IoT Developer Kit
+
+### Improvements
+- Disabled nRF GNSS priority mode before disconnecting
+- Added proper support for realtime clock on devices that use the POSIX clock API for that
+- Reversed dependency between ``ANJAY_ZEPHYR_GPS`` and ``ANJAY_ZEPHYR_GPS_{platform}`` Kconfig options for easier configuration; NOTE: this is a breaking change that may require updating your project configuration files
+- Reduced number of logs produced when NTP server can't be reached
+- Changed the default value of `ANJAY_ZEPHYR_GPS_NRF_PRIO_MODE_PERMITTED` Kconfig option to `n`
+- Unified persistence saving and loading order
+- Added a separate workqueue to perform library-related works
+
+### Bugfixes
+- Fixed reboot-related bug that occurred when stopping Anjay while processing the A-GPS request
+- Fixed invalid memory access when logging errors related to A-GPS requests
+- Retained location services result codes between objects creation/deletion
+- (commercial feature only) Fixed compatibility of the Core Persistence feature with the Zephyr TLS socket backend
+- (commercial feature only) Made sure that Core Persistence data is removed after each attempted use, to prevent old data from being used
+
 ## 3.4.1 (June 23rd, 2023)
 
 ### Features
 - (commercial feature only) Added support for bootstrapping from SIM card on
   nRF9160-based devices
-- Added support for nRF700x Wi-FI IC
+- Added support for nRF700x Wi-Fi IC
 - Added Light Control object for LED handling
 - Added persistence of attribute storage
 - Added support for FOTA of application and modem firmware for nRF9160 using
   experimental Advanced Firmware Update object (/33629)
-- (commercial feature only) Added support for Core Peristence
+- (commercial feature only) Added support for Core Persistence
 
 ### Improvements
 - Updated Anjay to version 3.4.1

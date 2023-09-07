@@ -24,12 +24,7 @@
 int _anjay_zephyr_persistence_purge(void);
 int _anjay_zephyr_restore_anjay_from_persistence(anjay_t *anjay);
 int _anjay_zephyr_persist_anjay_if_required(anjay_t *anjay);
-
-#    ifdef CONFIG_ANJAY_ZEPHYR_CORE_PERSISTENCE
-anjay_t *_anjay_zephyr_anjay_new_try_from_core_persistence(
-        const anjay_configuration_t *config);
-void _anjay_zephyr_anjay_delete_try_with_core_persistence(anjay_t *anjay);
-#    endif // CONFIG_ANJAY_ZEPHYR_CORE_PERSISTENCE
+int _anjay_zephyr_persist_anjay(anjay_t *anjay);
 
 #    ifdef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 int _anjay_zephyr_restore_anjay_from_factory_provisioning(anjay_t *anjay);

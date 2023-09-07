@@ -68,6 +68,11 @@ if(CONFIG_ANJAY)
                  src/gps_impl/gps_nrf.c)
         endif()
 
+        if(CONFIG_ANJAY_ZEPHYR_GPS_CXD5605)
+            list(APPEND CLIENT_SOURCES
+                 src/gps_impl/gps_cxd5605.c)
+        endif()
+
         if(CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO)
             list(APPEND CLIENT_SOURCES
                  src/nrf_lc_info.c
@@ -111,6 +116,10 @@ if(CONFIG_ANJAY)
         elseif(CONFIG_NET_L2_OPENTHREAD)
             list(APPEND CLIENT_SOURCES
                  src/network/network_openthread.c)
+        elseif(CONFIG_MODEM_MURATA_1SC OR CONFIG_WIFI_RS9116W)
+            list(APPEND CLIENT_SOURCES
+                 src/network/network_devedge.c
+                 src/network/network_devedge.h)
         elseif(CONFIG_WIFI_ESP32)
             list(APPEND CLIENT_SOURCES
                  src/network/network_esp32.c)

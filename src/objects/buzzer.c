@@ -144,8 +144,8 @@ static int buzzer_reschedule(struct buzzer_object *obj) {
                     MSEC_PER_SEC * obj->state.delay_duration;
 
             obj->last_run_end_timestamp = k_uptime_get() + delay_duration_msecs;
-            k_work_schedule(&obj->disable_buzzer_dwork,
-                            K_MSEC(delay_duration_msecs));
+            _anjay_zephyr_k_work_schedule(&obj->disable_buzzer_dwork,
+                                          K_MSEC(delay_duration_msecs));
         }
     } else {
         if (buzzer_disable(obj)) {

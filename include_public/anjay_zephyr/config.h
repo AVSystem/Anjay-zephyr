@@ -39,6 +39,10 @@
 #    include <zephyr/net/wifi_mgmt.h>
 #endif // CONFIG_WIFI
 
+#ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+#    include "bearer_list.h"
+#endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+
 /**
  * Returns the default endpoint name.
  *
@@ -68,6 +72,16 @@ int anjay_zephyr_config_get_wifi_ssid(char *buf, size_t buf_capacity);
  */
 int anjay_zephyr_config_get_wifi_password(char *buf, size_t buf_capacity);
 #endif // CONFIG_WIFI
+
+#ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+/**
+ * Get preferred network bearer stored in the settings.
+ *
+ * @return              Preferred network bearer.
+ */
+struct anjay_zephyr_network_preferred_bearer_list_t
+anjay_zephyr_config_get_preferred_bearers(void);
+#endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 
 #ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 /**

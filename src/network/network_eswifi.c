@@ -86,10 +86,11 @@ static void eswifi_keepalive_work_cb(struct k_work *work) {
         // seconds. This blocks e.g. poll() in the event loop - so let's call it
         // via k_work_delayable to give the event loop a bit of time to perform
         // all the close actions.
-        k_work_schedule(&eswifi_reconnect_work, K_SECONDS(5));
+        _anjay_zephyr_k_work_schedule(&eswifi_reconnect_work, K_SECONDS(5));
     } else {
-        k_work_schedule(&eswifi_keepalive_work,
-                        K_SECONDS(CONFIG_ANJAY_ZEPHYR_NETWORK_KEEPALIVE_RATE));
+        _anjay_zephyr_k_work_schedule(
+                &eswifi_keepalive_work,
+                K_SECONDS(CONFIG_ANJAY_ZEPHYR_NETWORK_KEEPALIVE_RATE));
     }
 }
 
@@ -135,13 +136,13 @@ static void eswifi_mgmt_cb(struct net_mgmt_event_callback *cb,
             dwork = &eswifi_reconnect_work;
         }
 
-        k_work_schedule(dwork,
-                        K_SECONDS(CONFIG_ANJAY_ZEPHYR_NETWORK_KEEPALIVE_RATE));
+        _anjay_zephyr_k_work_schedule(
+                dwork, K_SECONDS(CONFIG_ANJAY_ZEPHYR_NETWORK_KEEPALIVE_RATE));
     } else if (mgmt_event == NET_EVENT_WIFI_DISCONNECT_RESULT) {
         // eswifi driver doesn't clear IP addrs on disconnect, let's remove them
         // manually Nested network event handling is explicitly disabled, so
         // let's do that via k_work
-        k_work_submit(&eswifi_disconnect_work);
+        _anjay_zephyr_k_work_submit(&eswifi_disconnect_work);
     }
 }
 

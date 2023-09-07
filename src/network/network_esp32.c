@@ -50,10 +50,10 @@ static void esp32_netif_updown_cb(struct net_mgmt_event_callback *cb,
                                   struct net_if *iface) {
     if (mgmt_event == NET_EVENT_IF_UP) {
         k_work_cancel(&esp32_disconnect_work);
-        k_work_submit(&esp32_connect_work);
+        _anjay_zephyr_k_work_submit(&esp32_connect_work);
     } else if (mgmt_event == NET_EVENT_IF_DOWN) {
         k_work_cancel(&esp32_connect_work);
-        k_work_submit(&esp32_disconnect_work);
+        _anjay_zephyr_k_work_submit(&esp32_disconnect_work);
     }
 }
 

@@ -39,6 +39,12 @@
 #    include <zephyr/net/socketutils.h>
 #endif // CONFIG_NET_IPV6
 
+#ifdef CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+static struct k_work_q anjay_zephyr_workqueue;
+static K_THREAD_STACK_DEFINE(anjay_workqueue_stack,
+                             CONFIG_ANJAY_ZEPHYR_WORKQUEUE_STACK_SIZE);
+#endif // CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+
 int _anjay_zephyr_get_device_id(struct anjay_zephyr_device_id *out_id) {
     memset(out_id->value, 0, sizeof(out_id->value));
 
@@ -207,3 +213,30 @@ freeaddr:
     return res;
 }
 #endif // CONFIG_NET_IPV6
+
+void _anjay_zephyr_init_workqueue(void) {
+#ifdef CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+    k_work_queue_init(&anjay_zephyr_workqueue);
+
+    k_work_queue_start(&anjay_zephyr_workqueue, anjay_workqueue_stack,
+                       CONFIG_ANJAY_ZEPHYR_WORKQUEUE_STACK_SIZE,
+                       CONFIG_ANJAY_ZEPHYR_WORKQUEUE_PRIORITY, NULL);
+#endif // CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+}
+
+int _anjay_zephyr_k_work_submit(struct k_work *work) {
+#ifdef CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+    return k_work_submit_to_queue(&anjay_zephyr_workqueue, work);
+#else
+    return k_work_submit(work);
+#endif // CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+}
+
+int _anjay_zephyr_k_work_schedule(struct k_work_delayable *dwork,
+                                  k_timeout_t delay) {
+#ifdef CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+    return k_work_schedule_for_queue(&anjay_zephyr_workqueue, dwork, delay);
+#else
+    return k_work_schedule(dwork, delay);
+#endif // CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+}

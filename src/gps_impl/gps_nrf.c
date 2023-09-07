@@ -178,7 +178,8 @@ static void incoming_pvt_work_handler(struct k_work *work) {
             // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/2.2.0/nrfxlib/nrf_modem/doc/gnss_interface.html#enabling-gnss-priority-mode
             // priority mode is disabled automatically after the first fix or
             // after 40 seconds
-            k_work_schedule(&prio_mode_disable_dwork, K_SECONDS(41));
+            _anjay_zephyr_k_work_schedule(&prio_mode_disable_dwork,
+                                          K_SECONDS(41));
         }
     }
 }
@@ -238,7 +239,7 @@ static void gnss_event_handler(int event) {
         if (k_msgq_put(&anjay_zephyr_incoming_pvt_msgq, &pvt, K_NO_WAIT)) {
             return;
         }
-        k_work_submit(&incoming_pvt_work);
+        _anjay_zephyr_k_work_submit(&incoming_pvt_work);
     }
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
     if (event == NRF_MODEM_GNSS_EVT_AGPS_REQ) {
@@ -274,6 +275,12 @@ int _anjay_zephyr_initialize_gps(void) {
         LOG_ERR("Failed to initialize GPS interface");
         return -1;
     }
+    return 0;
+}
+
+int _anjay_zephyr_stop_gps(void) {
+    struct k_work_sync sync;
+    k_work_flush_delayable(&prio_mode_disable_dwork, &sync);
     return 0;
 }
 

@@ -50,7 +50,7 @@ extern volatile atomic_bool anjay_zephyr_gps_prio_mode;
 #    endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF
 
 int _anjay_zephyr_initialize_gps(void);
-
+int _anjay_zephyr_stop_gps(void);
 #    ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 uint32_t _anjay_zephyr_gps_fetch_modem_agps_request_mask(void);
 void _anjay_zephyr_gps_clear_modem_agps_request_mask(void);

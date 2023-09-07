@@ -151,6 +151,5 @@ void _anjay_zephyr_gnss_assistance_object_release(
         const anjay_dm_object_def_t ***def);
 uint32_t _anjay_zephyr_gnss_assistance_get_exponential_backoff_value(
         const anjay_dm_object_def_t *const *obj_ptr);
-int32_t _anjay_zephyr_gnss_assistance_get_result_code(
-        const anjay_dm_object_def_t *const *obj_ptr);
+int32_t _anjay_zephyr_gnss_assistance_get_result_code(void);
 #endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE

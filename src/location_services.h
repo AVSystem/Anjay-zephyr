@@ -38,6 +38,7 @@ enum anjay_zephyr_location_services_requests {
 };
 
 void _anjay_zephyr_location_services_init(void);
+void _anjay_zephyr_location_services_stop(void);
 
 uint32_t
 _anjay_zephyr_location_services_calculate_backoff(uint8_t backoff_number);

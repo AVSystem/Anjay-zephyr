@@ -31,10 +31,11 @@
 
 LOG_MODULE_REGISTER(anjay_zephyr_ground_fix_location);
 
+static int32_t result_code_backup;
+
 typedef struct ground_fix_location_object_struct {
     const anjay_dm_object_def_t *def;
     int32_t result_code;
-    int32_t result_code_backup;
     anjay_zephyr_location_services_ground_fix_location_t location_current;
     anjay_zephyr_location_services_ground_fix_location_t location_backup;
     bool send_location_back;
@@ -72,7 +73,7 @@ static int instance_reset(anjay_t *anjay,
         if (obj->result_code > 0) {
             obj->result_code = 0;
         }
-        obj->result_code_backup = obj->result_code;
+        result_code_backup = obj->result_code;
     }
     return 0;
 }
@@ -195,7 +196,7 @@ static int transaction_commit(anjay_t *anjay,
 
     ground_fix_location_object_t *obj = get_obj(obj_ptr);
     SYNCHRONIZED(obj->mutex) {
-        obj->result_code_backup = obj->result_code;
+        result_code_backup = obj->result_code;
 
         if (obj->new_result_code) {
             obj->new_result_code = false;
@@ -232,7 +233,7 @@ static int transaction_rollback(anjay_t *anjay,
     ground_fix_location_object_t *obj = get_obj(obj_ptr);
     SYNCHRONIZED(obj->mutex) {
         obj->location_current = obj->location_backup;
-        obj->result_code = obj->result_code_backup;
+        obj->result_code = result_code_backup;
         obj->new_result_code = false;
         _anjay_zephyr_location_services_received_gf_location_req_response_from_server(
                 anjay, false, NULL);
@@ -273,7 +274,7 @@ int32_t _anjay_zephyr_ground_fix_location_get_result_code(
     ground_fix_location_object_t *obj = get_obj(obj_ptr);
     assert(obj);
     SYNCHRONIZED(obj->mutex) {
-        result = obj->result_code_backup;
+        result = result_code_backup;
     }
     return result;
 }

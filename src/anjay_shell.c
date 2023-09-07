@@ -103,6 +103,29 @@ cmd_anjay_private_key(const struct shell *shell, size_t argc, char **argv) {
 }
 #    endif // CONFIG_ANJAY_ZEPHYR_RUNTIME_CERT_CONFIG
 
+#    ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+static int cmd_anjay_config_set_preferred_bearer(const struct shell *shell,
+                                                 size_t argc,
+                                                 char **argv) {
+    // We allow setting preferred bearer even when Anjay is running
+    int result = _anjay_zephyr_config_set_option(shell, argc, argv);
+
+    if (result) {
+        return result;
+    }
+
+    struct anjay_zephyr_network_preferred_bearer_list_t bearers =
+            anjay_zephyr_config_get_preferred_bearers();
+
+    if (_anjay_zephyr_network_set_preferred_bearer_list(&bearers)) {
+        shell_print(shell,
+                    "Could not change the currently used network bearer");
+    }
+
+    return 0;
+}
+#    endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+
 static int
 cmd_anjay_config_default(const struct shell *shell, size_t argc, char **argv) {
     ARG_UNUSED(argc);
@@ -279,6 +302,12 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
                   "Wi-Fi password (empty for no-sec)",
                   cmd_anjay_config_set),
 #    endif // CONFIG_WIFI
+#    ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+        SHELL_CMD(OPTION_KEY_PREFERRED_BEARER,
+                  NULL,
+                  "Preferred network bearer",
+                  cmd_anjay_config_set_preferred_bearer),
+#    endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 #    ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
         SHELL_CMD(OPTION_KEY_URI, NULL, "Server URI", cmd_anjay_config_set),
         SHELL_CMD(OPTION_KEY_LIFETIME,

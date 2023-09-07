@@ -16,6 +16,11 @@
 
 #pragma once
 
+#if (!!defined(CONFIG_MODEM_MURATA_1SC) + !!defined(CONFIG_WIFI_RS9116W)) > 1
+#    define ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+#endif // (!!defined(CONFIG_MODEM_MURATA_1SC) +
+       // !!defined(CONFIG_WIFI_RS9116W)) > 1
+
 enum anjay_zephyr_network_bearer_t {
 #ifdef CONFIG_WIFI
     ANJAY_ZEPHYR_NETWORK_BEARER_WIFI,
@@ -28,3 +33,10 @@ enum anjay_zephyr_network_bearer_t {
 #endif // CONFIG_NET_L2_OPENTHREAD
     ANJAY_ZEPHYR_NETWORK_BEARER_LIMIT
 };
+
+#ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+struct anjay_zephyr_network_preferred_bearer_list_t {
+    enum anjay_zephyr_network_bearer_t
+            bearers[ANJAY_ZEPHYR_NETWORK_BEARER_LIMIT];
+};
+#endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS

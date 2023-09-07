@@ -20,6 +20,10 @@
 
 #include <zephyr/shell/shell.h>
 
+#if defined(CONFIG_MODEM_MURATA_1SC) || defined(CONFIG_WIFI_RS9116W)
+#    include "network/network_devedge.h"
+#endif // defined(CONFIG_MODEM_MURATA_1SC) || defined(CONFIG_WIFI_RS9116W)
+
 #include "anjay_zephyr/config.h"
 #include "network/network.h"
 
@@ -70,6 +74,23 @@
 #endif /* defined(CONFIG_WIFI) || defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) || \
         * !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)              \
         */
+
+#ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+#    define DEFAULT_BEARER_LIST            \
+        OPTION_VALUE_PREFERRED_BEARER_WIFI \
+        "," OPTION_VALUE_PREFERRED_BEARER_CELLULAR
+#endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+
+#ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+#    define OPTION_KEY_PREFERRED_BEARER preferred_bearer
+
+#    define OPTION_VALUE_PREFERRED_BEARER_WIFI "wifi"
+#    define OPTION_VALUE_PREFERRED_BEARER_CELLULAR "cellular"
+
+#    ifndef WITH_ANJAY_ZEPHYR_CONFIG
+#        define WITH_ANJAY_ZEPHYR_CONFIG
+#    endif // WITH_ANJAY_ZEPHYR_CONFIG
+#endif     // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 
 #ifdef WITH_ANJAY_ZEPHYR_CONFIG
 void _anjay_zephyr_config_init(void);

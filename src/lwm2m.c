@@ -90,6 +90,7 @@ static K_THREAD_STACK_DEFINE(anjay_stack,
 
 static struct k_work_delayable sync_clock_work;
 static K_SEM_DEFINE(synchronize_clock_sem, 0, 1);
+static bool time_sync_failed;
 
 #ifndef ANJAY_ZEPHYR_NO_NETWORK_MGMT
 static enum anjay_zephyr_network_bearer_t anjay_last_known_bearer;
@@ -168,11 +169,16 @@ static void synchronize_clock(void) {
 #endif
     ) {
         set_system_time(&time);
+        LOG_INF("Time synchronized");
+        time_sync_failed = false;
         k_sem_give(&synchronize_clock_sem);
     } else {
-        LOG_WRN("Failed to get current time");
-        k_work_schedule(&sync_clock_work,
-                        K_SECONDS(RETRY_SYNC_CLOCK_DELAY_TIME_S));
+        if (!time_sync_failed) {
+            time_sync_failed = true;
+            LOG_WRN("Failed to get current time");
+        }
+        _anjay_zephyr_k_work_schedule(&sync_clock_work,
+                                      K_SECONDS(RETRY_SYNC_CLOCK_DELAY_TIME_S));
     }
 }
 
@@ -183,9 +189,16 @@ static void retry_synchronize_clock_work_handler(struct k_work *work) {
 static void deinitialize_anjay(anjay_t *anjay) {
     anjay_delete(anjay);
 
+    struct k_work_sync sync;
+    k_work_cancel_delayable_sync(&sync_clock_work, &sync);
+
     _anjay_zephyr_push_button_clean();
     _anjay_zephyr_basic_sensors_remove();
     _anjay_zephyr_three_axis_sensors_remove();
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
+    _anjay_zephyr_location_services_stop();
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES
 
 #ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
     _anjay_zephyr_conn_mon_object_release(&anjay_zephyr_conn_mon_obj);
@@ -196,6 +209,7 @@ static void deinitialize_anjay(anjay_t *anjay) {
     _anjay_zephyr_ground_fix_location_object_release(
             &anjay_zephyr_ground_fix_location_obj);
 #endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+
 #ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_ASSISTANCE
     _anjay_zephyr_gnss_assistance_object_release(
             &anjay_zephyr_gnss_assistance_obj);
@@ -524,6 +538,7 @@ static anjay_t *initialize_anjay(void) {
     if (execute_user_callback(anjay, ANJAY_ZEPHYR_LWM2M_CALLBACK_REASON_INIT)) {
         goto error;
     }
+
 #ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE
     if (anjay_zephyr_config_is_use_persistence()
             && !_anjay_zephyr_restore_anjay_from_persistence(anjay)) {
@@ -623,27 +638,37 @@ agps_request_cb(anjay_zephyr_location_services_request_result_t result) {
         agps_requested = false;
     } else if (result != ANJAY_ZEPHYR_LOCATION_SERVICES_PERMANENT_FAILURE
                && _anjay_zephyr_gps_fetch_modem_agps_request_mask()) {
-        exponential_backoff = _anjay_zephyr_location_services_calculate_backoff(
-                request_result_failed_in_row++);
-
-        LOG_WRN("A-GPS request failed, trying again with exponential backoff "
-                "%" PRIu32 "s",
-                exponential_backoff);
 
         SYNCHRONIZED(anjay_zephyr_global_anjay_mutex) {
-            struct anjay_zephyr_agps_request_job_args args = {
-                .anjay = anjay_zephyr_global_anjay,
-                .cb = agps_request_cb,
-                .request_mask =
-                        _anjay_zephyr_gps_fetch_modem_agps_request_mask(),
-                .exponential_backoff = true
-            };
+            if (anjay_zephyr_global_anjay) {
+                exponential_backoff =
+                        _anjay_zephyr_location_services_calculate_backoff(
+                                request_result_failed_in_row++);
 
-            AVS_SCHED_DELAYED(anjay_get_scheduler(args.anjay), NULL,
-                              avs_time_duration_from_scalar(exponential_backoff,
-                                                            AVS_TIME_S),
-                              _anjay_zephyr_agps_request_job, &args,
-                              sizeof(args));
+                LOG_WRN("A-GPS request failed, trying again with exponential "
+                        "backoff "
+                        "%" PRIu32 "s",
+                        exponential_backoff);
+
+                struct anjay_zephyr_agps_request_job_args args = {
+                    .anjay = anjay_zephyr_global_anjay,
+                    .cb = agps_request_cb,
+                    .request_mask =
+                            _anjay_zephyr_gps_fetch_modem_agps_request_mask(),
+                    .exponential_backoff = true
+                };
+
+                AVS_SCHED_DELAYED(anjay_get_scheduler(args.anjay), NULL,
+                                  avs_time_duration_from_scalar(
+                                          exponential_backoff, AVS_TIME_S),
+                                  _anjay_zephyr_agps_request_job, &args,
+                                  sizeof(args));
+            } else {
+                LOG_WRN("Anjay is not running");
+                exponential_backoff = 0;
+                request_result_failed_in_row = 0;
+                agps_requested = false;
+            }
         }
     }
 }
@@ -729,6 +754,13 @@ static void run_anjay(void *arg1, void *arg2, void *arg3) {
 #endif // ANJAY_ZEPHYR_NO_NETWORK_MGMT
         }
 
+#ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE
+        if (anjay_zephyr_config_is_use_persistence()
+                && _anjay_zephyr_persist_anjay(anjay)) {
+            LOG_ERR("Couldn't persist Anjay's state!");
+        }
+#endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE
+
         // anjay stop could be called immediately after anjay start
         if (atomic_load(&anjay_zephyr_anjay_running)
                 && !execute_user_callback(
@@ -768,6 +800,9 @@ static void run_anjay(void *arg1, void *arg2, void *arg3) {
 #endif // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
 
     disconnect:
+#ifdef CONFIG_ANJAY_ZEPHYR_GPS
+        _anjay_zephyr_stop_gps();
+#endif // CONFIG_ANJAY_ZEPHYR_GPS
         _anjay_zephyr_network_disconnect();
     }
     atomic_store(&anjay_thread_running, false);
@@ -787,7 +822,9 @@ static int anjay_zephyr_lwm2m_init(void) {
         LOG_ERR("Can't initialize persistence");
     }
 #endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE
+    _anjay_zephyr_init_workqueue();
 
+    time_sync_failed = false;
     k_work_init_delayable(&sync_clock_work,
                           retry_synchronize_clock_work_handler);
 

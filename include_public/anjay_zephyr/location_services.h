@@ -54,7 +54,11 @@ typedef enum {
      * permanent failure. It means that further location services requests will
      * not be processed before device reboot.
      */
-    ANJAY_ZEPHYR_LOCATION_SERVICES_PERMANENT_FAILURE
+    ANJAY_ZEPHYR_LOCATION_SERVICES_PERMANENT_FAILURE,
+    /**
+     * Anjay was stopped during the request.
+     */
+    ANJAY_ZEPHYR_LOCATION_SERVICES_ANJAY_STOPPED
 } anjay_zephyr_location_services_request_result_t;
 
 /**

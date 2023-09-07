@@ -69,11 +69,12 @@ struct persistence_target {
 
 static bool previous_attempt_failed;
 static const struct persistence_target targets[] = {
+    DECL_TARGET(security_object),
+    DECL_TARGET(server_object),
+    DECL_TARGET(access_control),
 #ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
     DECL_TARGET(attr_storage),
 #endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
-    DECL_TARGET(access_control), DECL_TARGET(security_object),
-    DECL_TARGET(server_object)
 };
 
 #undef DECL_TARGET
@@ -265,8 +266,25 @@ int _anjay_zephyr_persist_anjay_if_required(anjay_t *anjay) {
 
     if (anything_persisted) {
         previous_attempt_failed = false;
-        LOG_INF("All targets successfully persisted");
+        LOG_INF("Targets successfully persisted");
     }
+    return 0;
+}
+
+int _anjay_zephyr_persist_anjay(anjay_t *anjay) {
+    assert(anjay);
+
+    for (size_t i = 0; i < AVS_ARRAY_SIZE(targets); i++) {
+        int result =
+                persist_target_to_settings(anjay, PERSISTENCE_ROOT_NAME,
+                                           targets[i].name, targets[i].persist);
+
+        if (result) {
+            return result;
+        }
+    }
+
+    LOG_INF("All targets successfully persisted");
     return 0;
 }
 

@@ -88,6 +88,10 @@ struct anjay_zephyr_app_config {
     struct string_option password;
     char password_storage[PASSWORD_STORAGE_SIZE];
 #    endif // CONFIG_WIFI
+#    ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+    struct string_option preferred_bearer;
+    char preferred_bearer_storage[sizeof(DEFAULT_BEARER_LIST)];
+#    endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 #    ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
     struct string_option uri;
     char uri_storage[URI_STORAGE_SIZE];
@@ -146,6 +150,9 @@ static config_option_validate_t string_validate;
 static config_option_validate_t flag_validate;
 #    endif // defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) ||
            // !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
+#    ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+static config_option_validate_t preferred_bearer_validate;
+#    endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 #    ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 static config_option_validate_t psk_hex_validate;
 static config_option_validate_t security_mode_validate;
@@ -164,6 +171,11 @@ static struct anjay_zephyr_option string_options[] = {
       &app_config.password, sizeof(app_config.password_storage),
       string_validate },
 #    endif // CONFIG_WIFI
+#    ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+    { AVS_QUOTE_MACRO(OPTION_KEY_PREFERRED_BEARER), "Preferred network bearers",
+      &app_config.preferred_bearer, sizeof(app_config.preferred_bearer_storage),
+      preferred_bearer_validate },
+#    endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 #    ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
     { AVS_QUOTE_MACRO(OPTION_KEY_URI), "LwM2M Server URI", &app_config.uri,
       sizeof(app_config.uri_storage), string_validate },
@@ -348,6 +360,11 @@ void _anjay_zephyr_config_default_init(void) {
             .password.length = sizeof(CONFIG_ANJAY_ZEPHYR_WIFI_PASSWORD),
             .password.null_terminated = true,
 #    endif // CONFIG_WIFI
+#    ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+            .preferred_bearer_storage = DEFAULT_BEARER_LIST,
+            .preferred_bearer.length = sizeof(DEFAULT_BEARER_LIST),
+            .preferred_bearer.null_terminated = true,
+#    endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 #    ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
             .uri_storage = CONFIG_ANJAY_ZEPHYR_SERVER_URI,
             .uri.length = sizeof(CONFIG_ANJAY_ZEPHYR_SERVER_URI),
@@ -402,6 +419,9 @@ void _anjay_zephyr_config_default_init(void) {
         app_config.ssid.value = app_config.ssid_storage;
         app_config.password.value = app_config.password_storage;
 #    endif // CONFIG_WIFI
+#    ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+        app_config.preferred_bearer.value = app_config.preferred_bearer_storage;
+#    endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 
 #    ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
         app_config.uri.value = app_config.uri_storage;
@@ -647,6 +667,81 @@ static int parse_uint32(const char *value, uint32_t *out) {
 #endif // defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) ||
        // !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
 
+#ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+static enum anjay_zephyr_network_bearer_t
+parse_preferred_bearer(const char *value) {
+#    ifdef CONFIG_WIFI_RS9116W
+    if (strcmp(value, OPTION_VALUE_PREFERRED_BEARER_WIFI) == 0) {
+        return ANJAY_ZEPHYR_NETWORK_BEARER_WIFI;
+    }
+#    endif // CONFIG_WIFI_RS9116W
+
+#    ifdef CONFIG_MODEM_MURATA_1SC
+    if (strcmp(value, OPTION_VALUE_PREFERRED_BEARER_CELLULAR) == 0) {
+        return ANJAY_ZEPHYR_NETWORK_BEARER_CELLULAR;
+    }
+#    endif // CONFIG_MODEM_MURATA_1SC
+
+    return ANJAY_ZEPHYR_NETWORK_BEARER_LIMIT;
+}
+
+static struct anjay_zephyr_network_preferred_bearer_list_t
+invalid_preferred_bearer_list(void) {
+    struct anjay_zephyr_network_preferred_bearer_list_t ret;
+
+    for (size_t i = 0; i < AVS_ARRAY_SIZE(ret.bearers); ++i) {
+        ret.bearers[i] = ANJAY_ZEPHYR_NETWORK_BEARER_LIMIT;
+    }
+
+    return ret;
+}
+
+static struct anjay_zephyr_network_preferred_bearer_list_t
+parse_preferred_bearer_list(const char *value) {
+    // This is a BSD extension provided by newlib, but only visible with #define
+    // _DEFAULT_SOURCE _DEFAULT_SOURCE conflicts with some POSIX-like
+    // declarations in Zephyr, though.
+    extern char *strsep(char **stringp, const char *delim);
+
+    char preferred_bearer[sizeof(DEFAULT_BEARER_LIST)];
+    struct anjay_zephyr_network_preferred_bearer_list_t ret =
+            invalid_preferred_bearer_list();
+
+    if (avs_simple_snprintf(preferred_bearer, sizeof(preferred_bearer), "%s",
+                            value)
+            < 0) {
+        return invalid_preferred_bearer_list();
+    }
+
+    char *stringp = preferred_bearer;
+    size_t i = 0;
+
+    while (true) {
+        char *token = strsep(&stringp, ",");
+
+        if (!token) {
+            break;
+        }
+
+        if (i >= AVS_ARRAY_SIZE(ret.bearers)) {
+            // Invalid input - too many entries
+            return invalid_preferred_bearer_list();
+        }
+
+        enum anjay_zephyr_network_bearer_t bearer =
+                parse_preferred_bearer(token);
+
+        if (!_anjay_zephyr_network_bearer_valid(bearer)) {
+            return invalid_preferred_bearer_list();
+        }
+
+        ret.bearers[i++] = bearer;
+    }
+
+    return ret;
+}
+#endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+
 #if !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING) || defined(CONFIG_WIFI)
 int get_config(char *src, char *dst, size_t buf_capacity) {
     int ret = 0;
@@ -673,6 +768,25 @@ int anjay_zephyr_config_get_wifi_password(char *buf, size_t buf_capacity) {
     return get_config(app_config.password.value, buf, buf_capacity);
 }
 #endif // CONFIG_WIFI
+
+#ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+struct anjay_zephyr_network_preferred_bearer_list_t
+anjay_zephyr_config_get_preferred_bearers(void) {
+    struct anjay_zephyr_network_preferred_bearer_list_t ret = { 0 };
+    SYNCHRONIZED(config_mutex) {
+        ret = parse_preferred_bearer_list(app_config.preferred_bearer.value);
+    }
+
+    if (!_anjay_zephyr_network_preferred_bearer_list_valid(&ret)) {
+        // use the defaults
+        for (size_t i = 0; i < AVS_ARRAY_SIZE(ret.bearers); ++i) {
+            ret.bearers[i] = (enum anjay_zephyr_network_bearer_t) i;
+        }
+    }
+
+    return ret;
+}
+#endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 
 #ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
 int anjay_zephyr_config_get_endpoint_name(char *buf, size_t buf_capacity) {
@@ -784,6 +898,35 @@ static int string_validate(const struct shell *shell,
 #endif /* defined(CONFIG_WIFI) || defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) || \
         * !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)              \
         */
+
+#ifdef ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
+static int preferred_bearer_validate(const struct shell *shell,
+                                     const char *value,
+                                     size_t value_len,
+                                     const struct anjay_zephyr_option *option) {
+    if (string_validate(shell, value, value_len, option)) {
+        return -1;
+    }
+
+    struct anjay_zephyr_network_preferred_bearer_list_t out =
+            parse_preferred_bearer_list(value);
+
+    if (!_anjay_zephyr_network_preferred_bearer_list_valid(&out)) {
+        shell_error(shell,
+                    "Value invalid; please specify a comma-separated list of:"
+#    ifdef CONFIG_WIFI_RS9116W
+                    " '" OPTION_VALUE_PREFERRED_BEARER_WIFI "'"
+#    endif // CONFIG_WIFI_RS9116W
+#    ifdef CONFIG_MODEM_MURATA_1SC
+                    " '" OPTION_VALUE_PREFERRED_BEARER_CELLULAR "'"
+#    endif // CONFIG_MODEM_MURATA_1SC
+                    "\n");
+        return -1;
+    }
+
+    return 0;
+}
+#endif // ANJAY_ZEPHYR_DEVEDGE_MULTIPLE_BEARERS
 
 #if defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) \
         || !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)

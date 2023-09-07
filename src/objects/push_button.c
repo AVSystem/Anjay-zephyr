@@ -29,6 +29,7 @@
 #include <zephyr/logging/log.h>
 
 #include "objects.h"
+#include "utils.h"
 
 LOG_MODULE_REGISTER(anjay_zephyr_push_button);
 
@@ -83,7 +84,7 @@ static void button_state_changed(const struct device *dev,
 
             k_work_init(&work->work, button_change_state_handler);
 
-            if (k_work_submit(&work->work) == 1) {
+            if (_anjay_zephyr_k_work_submit(&work->work) == 1) {
                 return;
             }
 

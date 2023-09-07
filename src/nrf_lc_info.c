@@ -109,8 +109,9 @@ static void periodic_search_work_handler(struct k_work *work) {
         LOG_ERR("Can't search for neighbor cells, error: %d", err);
     }
 
-    k_work_schedule(k_work_delayable_from_work(work),
-                    K_SECONDS(CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO_CELL_POLL_RATE));
+    _anjay_zephyr_k_work_schedule(
+            k_work_delayable_from_work(work),
+            K_SECONDS(CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO_CELL_POLL_RATE));
 }
 
 int _anjay_zephyr_initialize_nrf_lc_info_listener(void) {
@@ -135,7 +136,7 @@ int _anjay_zephyr_initialize_nrf_lc_info_listener(void) {
     lte_lc_register_handler(lte_lc_evt_handler);
     k_work_init_delayable(&periodic_search_dwork, periodic_search_work_handler);
 
-    res = k_work_schedule(&periodic_search_dwork, K_NO_WAIT);
+    res = _anjay_zephyr_k_work_schedule(&periodic_search_dwork, K_NO_WAIT);
     if (res < 0) {
         return res;
     }

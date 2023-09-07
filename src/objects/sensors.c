@@ -22,6 +22,7 @@
 #include <zephyr/logging/log.h>
 
 #include "objects.h"
+#include "utils.h"
 
 LOG_MODULE_REGISTER(anjay_zephyr_sensors);
 
@@ -79,7 +80,7 @@ static int basic_sensor_get_value(anjay_iid_t iid, void *_ctx, double *value) {
     struct anjay_zephyr_ipso_sensor_context *ctx =
             (struct anjay_zephyr_ipso_sensor_context *) _ctx;
 
-    k_work_submit(&ctx->sync.work);
+    _anjay_zephyr_k_work_submit(&ctx->sync.work);
     k_sem_take(&ctx->sync.sem, K_FOREVER);
 
     *value = ctx->sync.value[x_axis];
@@ -103,7 +104,7 @@ static int three_axis_sensor_get_values(anjay_iid_t iid,
     struct anjay_zephyr_ipso_sensor_context *ctx =
             (struct anjay_zephyr_ipso_sensor_context *) _ctx;
 
-    k_work_submit(&ctx->sync.work);
+    _anjay_zephyr_k_work_submit(&ctx->sync.work);
     k_sem_take(&ctx->sync.sem, K_FOREVER);
 
     *x_value = ctx->sync.value[x_axis];

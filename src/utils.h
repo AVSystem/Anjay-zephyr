@@ -50,3 +50,15 @@ int _anjay_zephyr_sntp_simple_ipv6(const char *server,
                                    uint32_t timeout,
                                    struct sntp_time *time);
 #endif // CONFIG_NET_IPV6
+
+void _anjay_zephyr_init_workqueue(void);
+
+/**
+ * These functions should be used in place of basic Zephyr functions
+ * k_work_submit and k_work_schedule.
+ * Their purpose is to avoid using the system workqueue in order to prevent
+ * blocking other works from different modules.
+ */
+int _anjay_zephyr_k_work_submit(struct k_work *work);
+int _anjay_zephyr_k_work_schedule(struct k_work_delayable *dwork,
+                                  k_timeout_t delay);

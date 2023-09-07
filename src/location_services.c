@@ -28,7 +28,7 @@
 
 LOG_MODULE_REGISTER(anjay_zephyr_location_services);
 
-static struct k_mutex gf_location_request_mutex;
+static struct k_mutex g_location_request_mutex;
 
 #ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
 static anjay_zephyr_location_services_gf_location_request_cb_t
@@ -74,7 +74,7 @@ static void
 process_callback(anjay_zephyr_location_services_request_result_t result,
                  anjay_zephyr_location_services_ground_fix_location_t *location,
                  enum anjay_zephyr_location_services_requests req_kind) {
-    SYNCHRONIZED(gf_location_request_mutex) {
+    SYNCHRONIZED(g_location_request_mutex) {
         switch (req_kind) {
 #ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
         case LOCATION_SERVICES_REQUESTS_CELL_REQUEST:
@@ -104,9 +104,9 @@ process_callback(anjay_zephyr_location_services_request_result_t result,
 
 static void request_failed_due_to_no_response_from_server(avs_sched_t *sched,
                                                           const void *data) {
-    SYNCHRONIZED(gf_location_request_mutex) {
+    SYNCHRONIZED(g_location_request_mutex) {
         enum anjay_zephyr_location_services_requests req_kind =
-                (enum anjay_zephyr_location_services_requests) (uintptr_t) data;
+                *(const enum anjay_zephyr_location_services_requests *) data;
         LOG_WRN("No response to %s request received from the server.",
                 g_requests[req_kind].name);
         g_requests[req_kind].in_progress = false;
@@ -120,7 +120,7 @@ static void send_finished_handler(anjay_t *anjay,
                                   const anjay_send_batch_t *batch,
                                   int result,
                                   void *data) {
-    SYNCHRONIZED(gf_location_request_mutex) {
+    SYNCHRONIZED(g_location_request_mutex) {
         enum anjay_zephyr_location_services_requests req_kind =
                 (enum anjay_zephyr_location_services_requests) (uintptr_t) data;
 
@@ -194,7 +194,7 @@ static void received_req_response_from_server(
         anjay_zephyr_location_services_ground_fix_location_t *location,
         int32_t result_code,
         uint32_t backoff_value) {
-    SYNCHRONIZED(gf_location_request_mutex) {
+    SYNCHRONIZED(g_location_request_mutex) {
         avs_sched_del(&g_requests[req_kind]
                                .failed_due_to_no_response_from_server_handle);
         g_requests[req_kind].in_progress = false;
@@ -248,7 +248,30 @@ _anjay_zephyr_location_services_calculate_backoff(uint8_t backoff_number) {
 }
 
 void _anjay_zephyr_location_services_init(void) {
-    k_mutex_init(&gf_location_request_mutex);
+    k_mutex_init(&g_location_request_mutex);
+}
+
+static void
+location_service_stop(enum anjay_zephyr_location_services_requests req_kind) {
+    if (g_requests[req_kind].in_progress) {
+        avs_sched_del(&g_requests[req_kind]
+                               .failed_due_to_no_response_from_server_handle);
+        process_callback(ANJAY_ZEPHYR_LOCATION_SERVICES_ANJAY_STOPPED, NULL,
+                         req_kind);
+        g_requests[req_kind].in_progress = false;
+    }
+}
+
+void _anjay_zephyr_location_services_stop(void) {
+#ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
+    location_service_stop(LOCATION_SERVICES_REQUESTS_AGPS_REQUEST);
+#endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
+
+#ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
+    SYNCHRONIZED(g_location_request_mutex) {
+        location_service_stop(LOCATION_SERVICES_REQUESTS_CELL_REQUEST);
+    }
+#endif // CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
 }
 
 #ifdef CONFIG_ANJAY_ZEPHYR_LOCATION_SERVICES_GROUND_FIX_LOCATION
@@ -271,7 +294,7 @@ static int send_gf_location_request(
     anjay_send_batch_builder_t *builder = anjay_send_batch_builder_new();
 
     if (!builder) {
-        LOG_ERR("Failed to allocate batch builder");
+        LOG_ERR("Out of memory");
         return -1;
     }
 
@@ -317,7 +340,7 @@ int anjay_zephyr_location_services_gf_location_request(
         bool exponential_backoff) {
     int result = -1;
 
-    SYNCHRONIZED(gf_location_request_mutex) {
+    SYNCHRONIZED(g_location_request_mutex) {
         if (g_requests[LOCATION_SERVICES_REQUESTS_CELL_REQUEST].in_progress) {
             LOG_WRN("Ground fix location request already in progress");
         } else if (!send_gf_location_request(anjay, request_type)) {
@@ -336,7 +359,7 @@ int anjay_zephyr_location_services_gf_location_request(
 static void
 g_gf_location_request_exponential_backoff_job(avs_sched_t *sched,
                                               const void *anjay_ptr) {
-    SYNCHRONIZED(gf_location_request_mutex) {
+    SYNCHRONIZED(g_location_request_mutex) {
         if (send_gf_location_request(*(anjay_t *const *) anjay_ptr,
                                      g_last_gf_location_request_type)) {
             g_requests[LOCATION_SERVICES_REQUESTS_CELL_REQUEST].in_progress =
@@ -379,9 +402,7 @@ static int send_agps_request(anjay_t *anjay, uint32_t request_mask) {
         return -1;
     }
 
-    if (_anjay_zephyr_gnss_assistance_get_result_code(
-                anjay_zephyr_gnss_assistance_obj)
-            < 0) {
+    if (_anjay_zephyr_gnss_assistance_get_result_code() < 0) {
         LOG_WRN("Permanent failure result code received, device will not retry "
                 "A-GPS request until reboot");
         return -1;
@@ -439,7 +460,7 @@ static int send_agps_request(anjay_t *anjay, uint32_t request_mask) {
     anjay_send_batch_builder_t *builder = anjay_send_batch_builder_new();
 
     if (!builder) {
-        LOG_ERR("Failed to allocate batch builder");
+        LOG_ERR("Out of memory");
         return -1;
     }
 
@@ -530,8 +551,7 @@ void _anjay_zephyr_location_services_received_agps_req_response_from_server(
         anjay_t *anjay, bool successful) {
     received_req_response_from_server(
             anjay, successful, LOCATION_SERVICES_REQUESTS_AGPS_REQUEST, NULL,
-            _anjay_zephyr_gnss_assistance_get_result_code(
-                    anjay_zephyr_gnss_assistance_obj),
+            _anjay_zephyr_gnss_assistance_get_result_code(),
             _anjay_zephyr_gnss_assistance_get_exponential_backoff_value(
                     anjay_zephyr_gnss_assistance_obj));
 }
