@@ -492,6 +492,18 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
 /* #undef AVS_COMMONS_WITH_MBEDTLS_PSA_ENGINE_PROTECTED_STORAGE */
 
 /**
+ * Enables use of the <c>psa_generate_random()</c> function as the default
+ * random number generator when using the Mbed TLS crypto backend, instead of
+ * CTR-DRBG seeded by the Mbed TLS entropy pool.
+ *
+ * It's meaningful only when @ref AVS_COMMONS_WITH_MBEDTLS is enabled. However,
+ * it is independent from the above PSA engine settings.
+ */
+#ifdef CONFIG_MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
+#    define AVS_COMMONS_WITH_MBEDTLS_PSA_RNG
+#endif // CONFIG_MBEDTLS_PSA_CRYPTO_EXTERNAL_RNG
+
+/**
  * Is the <c>dlsym()</c> function available?
  *
  * This is currently only used if @ref AVS_COMMONS_WITH_MBEDTLS_PKCS11_ENGINE is

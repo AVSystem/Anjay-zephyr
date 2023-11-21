@@ -26,6 +26,10 @@
 #include <modem/modem_info.h>
 #include <modem/nrf_modem_lib.h>
 
+#if __has_include("ncs_version.h")
+#    include "ncs_version.h"
+#endif // __has_include("ncs_version.h")
+
 #include "afu_nrf9160.h"
 
 #include <pm_config.h>
@@ -230,7 +234,11 @@ void _anjay_zephyr_afu_nrf9160_full_modem_apply(void) {
         goto finish;
     }
 
+#    if NCS_VERSION_NUMBER >= 0x20400
+    result = nrf_modem_lib_bootloader_init();
+#    else  // NCS_VERSION_NUMBER >= 0x20400
     result = nrf_modem_lib_init(BOOTLOADER_MODE);
+#    endif // NCS_VERSION_NUMBER >= 0x20400
     if (result) {
         LOG_ERR("Could not initialize nrf_modem_lib in Bootloader (full DFU) "
                 "mode: %d",
@@ -253,7 +261,11 @@ void _anjay_zephyr_afu_nrf9160_full_modem_apply(void) {
         goto finish;
     }
 
+#    if NCS_VERSION_NUMBER >= 0x20400
+    result = nrf_modem_lib_init();
+#    else  // NCS_VERSION_NUMBER >= 0x20400
     result = nrf_modem_lib_init(NORMAL_MODE);
+#    endif // NCS_VERSION_NUMBER >= 0x20400
     if (result) {
         LOG_ERR("Could not reinitialize nrf_modem_lib in normal mode: %d",
                 result);

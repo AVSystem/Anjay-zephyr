@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.6.1 (November 21st, 2023)
+
+### Bugfixes
+- Added zero initialization for /6 Location Object Resources for the state
+  before catching the first fix in favor of blocking the Read operation
+
+### Improvements
+- Fixed compatibility with newest versions of Zephyr and nRF Connect SDK
+
 ## 3.5.0 (September 7th, 2023)
 
 ### Features

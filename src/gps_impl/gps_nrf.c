@@ -36,6 +36,10 @@
 #    include "../objects/objects.h"
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 
+#if __has_include("ncs_version.h")
+#    include "ncs_version.h"
+#endif // __has_include("ncs_version.h")
+
 LOG_MODULE_REGISTER(anjay_zephyr_gps_nrf);
 
 #define INTERRUPTED_FIXES_WARN_THRESHOLD 10
@@ -185,35 +189,62 @@ static void incoming_pvt_work_handler(struct k_work *work) {
 }
 
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
+#    if NCS_VERSION_NUMBER < 0x20463
+#        define nrf_modem_gnss_agnss_data_frame nrf_modem_gnss_agps_data_frame
+#        define NRF_MODEM_GNSS_AGNSS_GPS_UTC_REQUEST \
+            NRF_MODEM_GNSS_AGPS_GPS_UTC_REQUEST
+#        define NRF_MODEM_GNSS_AGNSS_KLOBUCHAR_REQUEST \
+            NRF_MODEM_GNSS_AGPS_KLOBUCHAR_REQUEST
+#        define NRF_MODEM_GNSS_AGNSS_NEQUICK_REQUEST \
+            NRF_MODEM_GNSS_AGPS_NEQUICK_REQUEST
+#        define NRF_MODEM_GNSS_AGNSS_GPS_SYS_TIME_AND_SV_TOW_REQUEST \
+            NRF_MODEM_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST
+#        define NRF_MODEM_GNSS_AGNSS_POSITION_REQUEST \
+            NRF_MODEM_GNSS_AGPS_POSITION_REQUEST
+#        define NRF_MODEM_GNSS_AGNSS_INTEGRITY_REQUEST \
+            NRF_MODEM_GNSS_AGPS_INTEGRITY_REQUEST
+#        define NRF_MODEM_GNSS_EVT_AGNSS_REQ NRF_MODEM_GNSS_EVT_AGPS_REQ
+#        define NRF_MODEM_GNSS_DATA_AGNSS_REQ NRF_MODEM_GNSS_DATA_AGPS_REQ
+#    endif // NCS_VERSION_NUMBER < 0x20463
+
 static void
-handle_modem_agps_request_evt(struct nrf_modem_gnss_agps_data_frame req) {
+handle_modem_agps_request_evt(struct nrf_modem_gnss_agnss_data_frame req) {
     uint32_t request_mask = 0;
 
-    if (req.data_flags & NRF_MODEM_GNSS_AGPS_GPS_UTC_REQUEST) {
+    if (req.data_flags & NRF_MODEM_GNSS_AGNSS_GPS_UTC_REQUEST) {
         request_mask |= LOC_SERVICES_A_GPS_MASK_UTC;
     }
-    if (req.data_flags & NRF_MODEM_GNSS_AGPS_KLOBUCHAR_REQUEST) {
+    if (req.data_flags & NRF_MODEM_GNSS_AGNSS_KLOBUCHAR_REQUEST) {
         request_mask |= LOC_SERVICES_A_GPS_MASK_KLOBUCHAR;
     }
-    if (req.data_flags & NRF_MODEM_GNSS_AGPS_NEQUICK_REQUEST) {
+    if (req.data_flags & NRF_MODEM_GNSS_AGNSS_NEQUICK_REQUEST) {
         request_mask |= LOC_SERVICES_A_GPS_MASK_NEQUICK;
     }
-    if (req.data_flags & NRF_MODEM_GNSS_AGPS_SYS_TIME_AND_SV_TOW_REQUEST) {
+    if (req.data_flags & NRF_MODEM_GNSS_AGNSS_GPS_SYS_TIME_AND_SV_TOW_REQUEST) {
         request_mask |=
                 LOC_SERVICES_A_GPS_MASK_TOW | LOC_SERVICES_A_GPS_MASK_CLOCK;
     }
-    if (req.data_flags & NRF_MODEM_GNSS_AGPS_POSITION_REQUEST) {
+    if (req.data_flags & NRF_MODEM_GNSS_AGNSS_POSITION_REQUEST) {
         request_mask |= LOC_SERVICES_A_GPS_MASK_LOCATION;
     }
-    if (req.data_flags & NRF_MODEM_GNSS_AGPS_INTEGRITY_REQUEST) {
+    if (req.data_flags & NRF_MODEM_GNSS_AGNSS_INTEGRITY_REQUEST) {
         request_mask |= LOC_SERVICES_A_GPS_MASK_INTEGRITY;
     }
+#    if NCS_VERSION_NUMBER >= 0x20463
+    if (req.system[0].sv_mask_ephe) {
+        request_mask |= LOC_SERVICES_A_GPS_MASK_EPHEMERIS;
+    }
+    if (req.system[0].sv_mask_alm) {
+        request_mask |= LOC_SERVICES_A_GPS_MASK_ALMANAC;
+    }
+#    else  // NCS_VERSION_NUMBER >= 0x20463
     if (req.sv_mask_ephe) {
         request_mask |= LOC_SERVICES_A_GPS_MASK_EPHEMERIS;
     }
     if (req.sv_mask_alm) {
         request_mask |= LOC_SERVICES_A_GPS_MASK_ALMANAC;
     }
+#    endif // NCS_VERSION_NUMBER >= 0x20463
 
     SYNCHRONIZED(anjay_zephyr_gps_read_last_mtx) {
         // We're reassigning the mask instead of ORing it with previous state,
@@ -242,11 +273,11 @@ static void gnss_event_handler(int event) {
         _anjay_zephyr_k_work_submit(&incoming_pvt_work);
     }
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
-    if (event == NRF_MODEM_GNSS_EVT_AGPS_REQ) {
-        struct nrf_modem_gnss_agps_data_frame req;
+    if (event == NRF_MODEM_GNSS_EVT_AGNSS_REQ) {
+        struct nrf_modem_gnss_agnss_data_frame req;
 
         if (nrf_modem_gnss_read(
-                    &req, sizeof(req), NRF_MODEM_GNSS_DATA_AGPS_REQ)) {
+                    &req, sizeof(req), NRF_MODEM_GNSS_DATA_AGNSS_REQ)) {
             LOG_ERR("Failed to retrieve a A-GPS REQ event");
             return;
         }

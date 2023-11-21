@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <assert.h>
 #include <stdatomic.h>
 #include <string.h>
 

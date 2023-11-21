@@ -29,6 +29,10 @@
 #include "../gps.h"
 #include "../utils.h"
 
+#if __has_include("ncs_version.h")
+#    include "ncs_version.h"
+#endif // __has_include("ncs_version.h")
+
 LOG_MODULE_REGISTER(anjay_zephyr_network_nrf91);
 
 static volatile atomic_int lte_nw_reg_status; // enum lte_lc_nw_reg_status
@@ -49,7 +53,11 @@ int _anjay_zephyr_network_internal_platform_initialize(void) {
     int ret;
 
 #if defined(CONFIG_LTE_LINK_CONTROL) && !defined(CONFIG_NRF_MODEM_LIB_SYS_INIT)
+#    if NCS_VERSION_NUMBER >= 0x20400
+    ret = nrf_modem_lib_init();
+#    else  // NCS_VERSION_NUMBER >= 0x20400
     ret = nrf_modem_lib_init(NORMAL_MODE);
+#    endif // NCS_VERSION_NUMBER >= 0x20400
     if (ret) {
 #    ifdef CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
         // nrf_modem_init (called indirectly) returns a positive code in case

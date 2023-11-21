@@ -19,9 +19,18 @@
 
 #include <zephyr/logging/log.h>
 
+#if __has_include("ncs_version.h")
+#    include "ncs_version.h"
+#endif // __has_include("ncs_version.h")
+
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
-#    include <net/nrf_cloud_agps.h>
-#endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
+#    if NCS_VERSION_NUMBER >= 0x20463
+#        include <net/nrf_cloud_agnss.h>
+#    else // NCS_VERSION_NUMBER >= 0x20463
+#        include <net/nrf_cloud_agps.h>
+#        define nrf_cloud_agnss_process nrf_cloud_agps_process
+#    endif // NCS_VERSION_NUMBER >= 0x20463
+#endif     // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 
 #include <anjay/anjay.h>
 #include <avsystem/commons/avs_defs.h>
@@ -205,8 +214,8 @@ static int transaction_commit(anjay_t *anjay,
     if (obj->assistance_data_len > 0) {
         LOG_INF("Received %zu bytes of A-GPS data", obj->assistance_data_len);
 
-        int err = nrf_cloud_agps_process(obj->assistance_data_buf,
-                                         obj->assistance_data_len);
+        int err = nrf_cloud_agnss_process(obj->assistance_data_buf,
+                                          obj->assistance_data_len);
         obj->assistance_data_len = 0;
 
         if (err) {

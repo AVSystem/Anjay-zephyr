@@ -15,10 +15,12 @@
  */
 
 #include <mbedtls/entropy.h>
+#include <mbedtls/platform.h>
 #include <mbedtls/timing.h>
 
 #include <avsystem/commons/avs_defs.h>
 #include <avsystem/commons/avs_errno.h>
+#include <avsystem/commons/avs_memory.h>
 #include <avsystem/commons/avs_time.h>
 
 #include <zephyr/drivers/entropy.h>
@@ -108,3 +110,22 @@ void anjay_zephyr_mbedtls_entropy_init__(mbedtls_entropy_context *ctx) {
     (void) result;
     AVS_ASSERT(!result, "Failed to add entropy source");
 }
+
+#if defined(MBEDTLS_PLATFORM_MEMORY)                  \
+        && !(defined(MBEDTLS_PLATFORM_CALLOC_MACRO)   \
+             && defined(MBEDTLS_PLATFORM_FREE_MACRO)) \
+        && !(defined(MBEDTLS_PLATFORM_STD_CALLOC)     \
+             && defined(MBEDTLS_PLATFORM_STD_FREE))   \
+        && !defined(CONFIG_MBEDTLS_ENABLE_HEAP)
+static int mbedtls_alloc_init(void) {
+    mbedtls_platform_set_calloc_free(avs_calloc, avs_free);
+    return 0;
+}
+
+SYS_INIT(mbedtls_alloc_init, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
+#endif // defined(MBEDTLS_PLATFORM_MEMORY) &&
+       // !(defined(MBEDTLS_PLATFORM_CALLOC_MACRO) &&
+       // defined(MBEDTLS_PLATFORM_FREE_MACRO)) &&
+       // !(defined(MBEDTLS_PLATFORM_STD_CALLOC) &&
+       // defined(MBEDTLS_PLATFORM_STD_FREE)) &&
+       // !defined(CONFIG_MBEDTLS_ENABLE_HEAP)

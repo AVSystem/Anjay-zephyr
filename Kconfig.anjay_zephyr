@@ -24,7 +24,7 @@ config ANJAY_ZEPHYR_MODEL_NUMBER
 
 config ANJAY_ZEPHYR_VERSION
 	string "Client Version"
-	default "3.5.0"
+	default "3.5.1"
 
 config ANJAY_ZEPHYR_AUTOGENERATE_ENDPOINT_NAME
 	bool "Autogenerate endpoint name"
@@ -238,6 +238,7 @@ menu "GPS on nRF9160-based devices"
 	config ANJAY_ZEPHYR_GPS_NRF_A_GPS
 		bool "Enable A-GPS using Nordic Location Services over LwM2M"
 		depends on ANJAY_ZEPHYR_GPS_NRF
+		select NRF_CLOUD_AGNSS
 		select NRF_CLOUD_AGPS
 		help
 			Attempt to retrieve A-GPS data using Nordic Location Services over LwM2M.
@@ -372,6 +373,9 @@ config ANJAY_ZEPHYR_FACTORY_PROVISIONING_INITIAL_FLASH
 	select MCUMGR_CMD_FS_MGMT
 	select MCUMGR_SMP_SHELL
 	select UART_CONSOLE_MCUMGR
+	select NET_BUF
+	select ZCBOR
+	select CRC
 	help
 		This option should be used with specially tailored version of the application that
 		will not perform any normal LwM2M client operation, but instead it will allow to

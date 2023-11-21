@@ -145,10 +145,6 @@ static int resource_read(anjay_t *anjay,
     assert(obj);
     assert(iid == 0);
 
-    if (!obj->cached_read.valid) {
-        return ANJAY_ERR_METHOD_NOT_ALLOWED;
-    }
-
     switch (rid) {
     case RID_TIMESTAMP:
         assert(riid == ANJAY_ID_INVALID);
@@ -212,6 +208,18 @@ const anjay_dm_object_def_t **anjay_zephyr_location_object_create(void) {
     }
     obj->def = &OBJ_DEF;
     obj->cached_read.valid = false;
+    obj->cached_read.timestamp = 0;
+    obj->cached_read.latitude = 0;
+    obj->cached_read.longitude = 0;
+#    ifdef CONFIG_ANJAY_ZEPHYR_GPS_ALTITUDE
+    obj->cached_read.altitude = 0;
+#    endif // CONFIG_ANJAY_ZEPHYR_GPS_ALTITUDE
+#    ifdef CONFIG_ANJAY_ZEPHYR_GPS_RADIUS
+    obj->cached_read.radius = 0;
+#    endif // CONFIG_ANJAY_ZEPHYR_GPS_RADIUS
+#    ifdef CONFIG_ANJAY_ZEPHYR_GPS_SPEED
+    obj->cached_read.speed = 0;
+#    endif // CONFIG_ANJAY_ZEPHYR_GPS_SPEED
 
     return &obj->def;
 }

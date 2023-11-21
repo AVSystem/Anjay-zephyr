@@ -450,10 +450,10 @@ static int send_agps_request(anjay_t *anjay, uint32_t request_mask) {
         }
     };
 
-    LOG_INF("Requesting following types of A-GPS data:");
+    LOG_INF("Requesting A-GPS data");
     for (size_t i = 0; i < AVS_ARRAY_SIZE(agps_flag_names); i++) {
         if (agps_flag_names[i].req_flag & request_mask) {
-            LOG_INF("%s", agps_flag_names[i].name);
+            LOG_DBG("%s", agps_flag_names[i].name);
         }
     }
 
