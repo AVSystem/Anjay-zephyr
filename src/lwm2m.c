@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
-
 #include <zephyr/net/sntp.h>
 #include <zephyr/posix/time.h>
 
@@ -31,6 +35,8 @@
 
 #include <avsystem/commons/avs_crypto_psk.h>
 #include <avsystem/commons/avs_prng.h>
+#include <avsystem/commons/avs_sched.h>
+#include <avsystem/commons/avs_time.h>
 
 #include "anjay_zephyr/factory_provisioning.h"
 #include "anjay_zephyr/lwm2m.h"
@@ -236,6 +242,7 @@ static void deinitialize_anjay(anjay_t *anjay) {
 }
 
 #ifndef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
+
 static int
 configure_servers_and_security_objects_from_settings(anjay_t *anjay) {
     const bool bootstrap = anjay_zephyr_config_is_bootstrap();
@@ -286,7 +293,7 @@ configure_servers_and_security_objects_from_settings(anjay_t *anjay) {
         .ssid = 1,
         .bootstrap_server = bootstrap,
         .server_uri = server_uri,
-        .security_mode = anjay_zephyr_config_get_security_mode()
+        .security_mode = anjay_zephyr_config_get_security_mode(),
     };
     switch (security_instance.security_mode) {
     case ANJAY_SECURITY_PSK:
@@ -341,7 +348,7 @@ configure_servers_and_security_objects_from_settings(anjay_t *anjay) {
             .default_min_period = -1,
             .default_max_period = -1,
             .disable_timeout = -1,
-            .binding = "U"
+            .binding = "U",
         };
 
         anjay_iid_t server_instance_id = ANJAY_ID_INVALID;
@@ -365,7 +372,7 @@ static int configure_servers_and_security_objects_from_params(anjay_t *anjay) {
                         &anjay_zephyr_init_params.security_instances[i],
                         &anjay_zephyr_init_params
                                  .inout_security_instance_ids[i])) {
-                LOG_ERR("Failed to instantiate Security object with id: %d",
+                LOG_ERR("Failed to add /0/%d",
                         anjay_zephyr_init_params
                                 .inout_security_instance_ids[i]);
                 return -1;
@@ -381,7 +388,7 @@ static int configure_servers_and_security_objects_from_params(anjay_t *anjay) {
                         &anjay_zephyr_init_params.server_instances[i],
                         &anjay_zephyr_init_params
                                  .inout_server_instance_ids[i])) {
-                LOG_ERR("Failed to instantiate Server object with id: %d",
+                LOG_ERR("Failed to add /1/%d",
                         anjay_zephyr_init_params.inout_server_instance_ids[i]);
                 return -1;
             }
@@ -396,8 +403,8 @@ static int configure_servers_and_security_objects(anjay_t *anjay) {
             || !anjay_zephyr_init_params.server_instances
                            != !anjay_zephyr_init_params
                                        .inout_server_instance_ids) {
-        LOG_ERR("Wrong initialization parameters, if user provides "
-                "Server/Security instances, instance IDs must also be passed");
+        LOG_ERR("For Server/Security objects both instances and IDs must be "
+                "pssed");
         return -1;
     }
 
@@ -405,7 +412,7 @@ static int configure_servers_and_security_objects(anjay_t *anjay) {
          && anjay_zephyr_init_params.server_instances)
             || anjay_zephyr_init_params.security_instances_count
                            < anjay_zephyr_init_params.server_instances_count) {
-        LOG_ERR("Wrong initialization parameters, lack of Security instances");
+        LOG_ERR("Lack of Security instances");
         return -1;
     } else if (!anjay_zephyr_init_params.security_instances
                && !anjay_zephyr_init_params.server_instances) {
@@ -457,7 +464,10 @@ static anjay_t *initialize_anjay(void) {
                             .nanoseconds = 0
                         }
                     },
-            .disable_legacy_server_initiated_bootstrap = true
+            .disable_legacy_server_initiated_bootstrap = true,
+#ifdef CONFIG_MBEDTLS_SSL_DTLS_CONNECTION_ID
+            .use_connection_id = true
+#endif // CONFIG_MBEDTLS_SSL_DTLS_CONNECTION_ID
         };
         anjay = anjay_new(&config);
     }
@@ -676,21 +686,20 @@ agps_request_cb(anjay_zephyr_location_services_request_result_t result) {
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
 
 static void update_internal_objects_and_persistence(avs_sched_t *sched,
-                                                    const void *anjay_ptr) {
-    anjay_t *anjay = *(anjay_t *const *) anjay_ptr;
-
-    _anjay_zephyr_device_object_update(anjay, device_obj);
+                                                    const void *arg) {
+    ARG_UNUSED(arg);
 
 #ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
-    update_objects_nrf_lc_info(anjay);
+    update_objects_nrf_lc_info(anjay_zephyr_global_anjay);
 #endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
 
 #ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_A_GPS
     uint32_t request_mask = _anjay_zephyr_gps_fetch_modem_agps_request_mask();
 
     if (request_mask && !agps_requested
-            && !_anjay_zephyr_send_agps_request(anjay, agps_request_cb,
-                                                request_mask, true)) {
+            && !_anjay_zephyr_send_agps_request(anjay_zephyr_global_anjay,
+                                                agps_request_cb, request_mask,
+                                                true)) {
         LOG_INF("Modem requests A-GPS data");
         agps_requested = true;
     }
@@ -698,15 +707,15 @@ static void update_internal_objects_and_persistence(avs_sched_t *sched,
 
 #ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE
     if (anjay_zephyr_config_is_use_persistence()
-            && _anjay_zephyr_persist_anjay_if_required(anjay)) {
+            && _anjay_zephyr_persist_anjay_if_required(
+                       anjay_zephyr_global_anjay)) {
         LOG_ERR("Couldn't persist Anjay's state!");
     }
 #endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE
 
     AVS_SCHED_DELAYED(sched, &update_internal_objects_and_persistence_handle,
                       avs_time_duration_from_scalar(1, AVS_TIME_S),
-                      update_internal_objects_and_persistence, &anjay,
-                      sizeof(anjay));
+                      update_internal_objects_and_persistence, NULL, 0);
 }
 
 static void run_anjay(void *arg1, void *arg2, void *arg3) {
@@ -732,8 +741,7 @@ static void run_anjay(void *arg1, void *arg2, void *arg3) {
         k_sem_reset(&synchronize_clock_sem);
         synchronize_clock();
         if (k_sem_take(&synchronize_clock_sem, K_SECONDS(30))) {
-            LOG_WRN("Could not synchronize system clock within timeout, "
-                    "continuing without real time...");
+            LOG_WRN("Could not synchronize system clock");
         }
 
         anjay_t *anjay = initialize_anjay();
@@ -742,7 +750,7 @@ static void run_anjay(void *arg1, void *arg2, void *arg3) {
             goto disconnect;
         }
 
-        LOG_INF("Successfully created thread");
+        LOG_DBG("Successfully created thread");
 
         SYNCHRONIZED(anjay_zephyr_global_anjay_mutex) {
             anjay_zephyr_global_anjay = anjay;
@@ -767,7 +775,7 @@ static void run_anjay(void *arg1, void *arg2, void *arg3) {
                            anjay,
                            ANJAY_ZEPHYR_LWM2M_CALLBACK_REASON_ANJAY_READY)) {
             update_internal_objects_and_persistence(anjay_get_scheduler(anjay),
-                                                    &anjay);
+                                                    NULL);
             anjay_event_loop_run_with_error_handling(
                     anjay, avs_time_duration_from_scalar(1, AVS_TIME_S));
         }
@@ -806,6 +814,9 @@ static void run_anjay(void *arg1, void *arg2, void *arg3) {
         _anjay_zephyr_network_disconnect();
     }
     atomic_store(&anjay_thread_running, false);
+
+    // check if there is a pending reboot
+    _anjay_zephyr_device_object_reboot_if_requested();
 }
 
 static int anjay_zephyr_lwm2m_init(void) {
@@ -861,7 +872,7 @@ static int anjay_zephyr_lwm2m_init(void) {
 int anjay_zephyr_lwm2m_init_from_user_params(
         anjay_zephyr_init_params_t *user_params) {
     if (!user_params) {
-        LOG_ERR("Initialization failed, NULL argument");
+        LOG_ERR("Invalid user_params pointer");
         return -1;
     }
 
@@ -881,14 +892,12 @@ int anjay_zephyr_lwm2m_init_from_settings(void) {
 
 int anjay_zephyr_lwm2m_start(void) {
     if (!atomic_load(&device_initialized)) {
-        LOG_WRN("Cannot start Anjay - device initialization is ongoing "
-                "(perhaps it hasn't connected to network yet)");
+        LOG_WRN("Cannot start Anjay - device initialization is not finished)");
         return -1;
     }
 
     if (!atomic_load(&anjay_zephyr_anjay_running)) {
 #ifdef WITH_ANJAY_ZEPHYR_CONFIG
-        LOG_INF("Saving config");
         _anjay_zephyr_config_save();
 #endif // WITH_ANJAY_ZEPHYR_CONFIG
         LOG_INF("Starting Anjay");
@@ -909,7 +918,7 @@ int anjay_zephyr_lwm2m_start(void) {
             atomic_store(&anjay_thread_running, true);
         }
     } else {
-        LOG_WRN("Cannot start Anjay - already running");
+        LOG_WRN("Anjay already running");
     }
     return 0;
 }

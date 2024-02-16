@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include <zephyr/sys/reboot.h>
 
 #include "../utils.h"
+#include "anjay_zephyr/lwm2m.h"
 
 #define SUPPORTED_BINDING_MODES "UQ"
 
@@ -122,8 +123,9 @@ struct device_object {
 #ifdef CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
     char fw_version[BOOT_IMG_VER_STRLEN_MAX];
 #endif // CONFIG_ANJAY_ZEPHYR_OTA_MCUBOOT
-    bool do_reboot;
 };
+
+static bool do_reboot;
 
 static inline struct device_object *
 get_obj(const anjay_dm_object_def_t *const *obj_ptr) {
@@ -253,13 +255,15 @@ static int resource_execute(anjay_t *anjay,
     (void) arg_ctx;
 
     struct device_object *obj = get_obj(obj_ptr);
+    (void) obj;
 
     assert(obj);
     assert(iid == 0);
 
     switch (rid) {
     case RID_REBOOT:
-        obj->do_reboot = true;
+        anjay_zephyr_lwm2m_stop();
+        do_reboot = true;
         return 0;
 
     default:
@@ -339,15 +343,8 @@ void _anjay_zephyr_device_object_release(
     }
 }
 
-void _anjay_zephyr_device_object_update(
-        anjay_t *anjay, const anjay_dm_object_def_t *const *def) {
-    if (!anjay || !def) {
-        return;
-    }
-
-    struct device_object *obj = get_obj(def);
-
-    if (obj->do_reboot) {
+void _anjay_zephyr_device_object_reboot_if_requested(void) {
+    if (do_reboot) {
         sys_reboot(SYS_REBOOT_WARM);
     }
 }

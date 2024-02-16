@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ struct button_instance {
 };
 
 static struct button_instance *buttons;
+static size_t buttons_count;
 
 struct change_button_state_work {
     bool reserved;
@@ -138,6 +139,7 @@ int anjay_zephyr_ipso_push_button_object_install(
 
     buttons = (struct button_instance *) avs_calloc(
             user_buttons_array_length, sizeof(struct button_instance));
+    buttons_count = user_buttons_array_length;
 
     if (!buttons) {
         return -1;
@@ -159,6 +161,11 @@ int anjay_zephyr_ipso_push_button_object_install(
 }
 
 void _anjay_zephyr_push_button_clean(void) {
+    for (anjay_iid_t iid = 0; iid < buttons_count; iid++) {
+        gpio_remove_callback(buttons[iid].button->device,
+                             &buttons[iid].push_button_callback);
+    }
     avs_free(buttons);
+    buttons_count = 0;
     buttons = NULL;
 }

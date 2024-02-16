@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -607,12 +607,25 @@
 /* #undef ANJAY_WITHOUT_MODULE_FW_UPDATE_PUSH_MODE */
 
 /**
- * Enables ipso_objects module (generic implementation of the following kinds of
- * the basic sensor and three axis sensor IPSO objects).
+ * Enable sw_mgmt module (implementation of the Software Management object).
+ */
+/* #undef ANJAY_WITH_MODULE_SW_MGMT */
+
+/**
+ * Enables ipso_objects module (generic implementation of basic sensor, three
+ * axis sensor and Push Button IPSO objects).
  */
 #ifdef CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS
 #    define ANJAY_WITH_MODULE_IPSO_OBJECTS
 #endif // CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS
+
+/**
+ * Enables experimental ipso_objects_v2 module (generic implementation of basic
+ * sensor and three axis sensor IPSO objects).
+ */
+#ifdef CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS_V2
+#    define ANJAY_WITH_MODULE_IPSO_OBJECTS_V2
+#endif // CONFIG_ANJAY_WITH_MODULE_IPSO_OBJECTS_V2
 
 /**
  * Enable at_sms module (implementation of an SMS driver for AT modem devices).

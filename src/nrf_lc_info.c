@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,15 +51,7 @@ static void lte_lc_evt_handler(const struct lte_lc_evt *const evt) {
         break;
     }
     case LTE_LC_EVT_NEIGHBOR_CELL_MEAS: {
-        LOG_INF("Neighbor cells measurement received");
         const struct lte_lc_cells_info *cells = &evt->cells_info;
-
-        if (cells->current_cell.id == LTE_LC_CELL_EUTRAN_ID_INVALID) {
-            LOG_INF("Not connected to any cell");
-        } else {
-            LOG_INF("Connected to cell E-UTRAN ID %" PRIu32,
-                    cells->current_cell.id);
-        }
 
         static char addr_buf[MODEM_INFO_MAX_RESPONSE_SIZE];
         int err = modem_info_string_get(MODEM_INFO_IP_ADDRESS, addr_buf,
@@ -90,7 +82,14 @@ static void lte_lc_evt_handler(const struct lte_lc_evt *const evt) {
             nrf_lc_info_changed = true;
         }
 
-        LOG_INF("Found %d neighbor cells", nrf_lc_info.cells.ncells_count);
+        if (cells->current_cell.id == LTE_LC_CELL_EUTRAN_ID_INVALID) {
+            LOG_INF("Not connected to any cell, neighbor cells found: %d",
+                    nrf_lc_info.cells.ncells_count);
+        } else {
+            LOG_INF("Connected to cell E-UTRAN ID %d, neighbor cells found: %d",
+                    cells->current_cell.id, nrf_lc_info.cells.ncells_count);
+        }
+
         break;
     }
     default:

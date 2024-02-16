@@ -1,4 +1,4 @@
-# Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+# Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -317,6 +317,10 @@ config ANJAY_WITH_MODULE_ADVANCED_FW_UPDATE
 config ANJAY_WITH_MODULE_IPSO_OBJECTS
     bool "Enable IPSO objects implementation"
     default y
+
+config ANJAY_WITH_MODULE_IPSO_OBJECTS_V2
+    bool "(experimental feature) Enable IPSO V2 objects implementation"
+    default n
 
 config ANJAY_WITH_MODULE_FACTORY_PROVISIONING
     bool "Enable factory provisioning module"

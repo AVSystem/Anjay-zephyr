@@ -1,4 +1,4 @@
-# Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+# Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ config ANJAY_ZEPHYR_MODEL_NUMBER
 
 config ANJAY_ZEPHYR_VERSION
 	string "Client Version"
-	default "3.5.1"
+	default "3.7.0"
 
 config ANJAY_ZEPHYR_AUTOGENERATE_ENDPOINT_NAME
 	bool "Autogenerate endpoint name"

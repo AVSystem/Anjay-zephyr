@@ -1,6 +1,16 @@
 # Changelog
 
+## 3.7.0 (February 16th, 2024)
+
+### Improvements
+- Reduced the memory footprint by lowering the logs verbosity
+- (commercial feature only) Added checking the Trigger resource value before updating registration in SMS Trigger mechanism
+- (commercial feature only) Added SMS Driver implementation for T-Mobile DevEdge DevKit
+
 ## 3.6.1 (November 21st, 2023)
+
+### Features
+- (commercial feature only) Added support SMS Trigger functionality for nRF9160-based devices
 
 ### Bugfixes
 - Added zero initialization for /6 Location Object Resources for the state

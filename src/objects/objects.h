@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,8 +38,7 @@ void _anjay_zephyr_three_axis_sensors_remove(void);
 const anjay_dm_object_def_t **_anjay_zephyr_device_object_create(void);
 void _anjay_zephyr_device_object_release(
         const anjay_dm_object_def_t ***out_def);
-void _anjay_zephyr_device_object_update(
-        anjay_t *anjay, const anjay_dm_object_def_t *const *def);
+void _anjay_zephyr_device_object_reboot_if_requested(void);
 
 #ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
 

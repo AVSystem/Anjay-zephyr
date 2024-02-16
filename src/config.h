@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,6 @@
 #endif /* defined(CONFIG_ANJAY_ZEPHYR_PERSISTENCE) &&        \
         * !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING) \
         */
-
 #if defined(CONFIG_WIFI) || defined(CONFIG_ANJAY_ZEPHYR_GPS_NRF) \
         || !defined(CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING)
 #    define WITH_ANJAY_ZEPHYR_CONFIG
