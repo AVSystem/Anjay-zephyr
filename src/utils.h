@@ -55,10 +55,12 @@ void _anjay_zephyr_init_workqueue(void);
 
 /**
  * These functions should be used in place of basic Zephyr functions
- * k_work_submit and k_work_schedule.
+ * k_work_submit, k_work_schedule and k_work_reschedule.
  * Their purpose is to avoid using the system workqueue in order to prevent
  * blocking other works from different modules.
  */
 int _anjay_zephyr_k_work_submit(struct k_work *work);
 int _anjay_zephyr_k_work_schedule(struct k_work_delayable *dwork,
                                   k_timeout_t delay);
+int _anjay_zephyr_k_work_reschedule(struct k_work_delayable *dwork,
+                                    k_timeout_t delay);

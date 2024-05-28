@@ -240,3 +240,12 @@ int _anjay_zephyr_k_work_schedule(struct k_work_delayable *dwork,
     return k_work_schedule(dwork, delay);
 #endif // CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
 }
+
+int _anjay_zephyr_k_work_reschedule(struct k_work_delayable *dwork,
+                                    k_timeout_t delay) {
+#ifdef CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+    return k_work_reschedule_for_queue(&anjay_zephyr_workqueue, dwork, delay);
+#else
+    return k_work_reschedule(dwork, delay);
+#endif // CONFIG_ANJAY_ZEPHYR_WORKQUEUE_ENABLE
+}

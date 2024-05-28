@@ -24,7 +24,7 @@ config ANJAY_ZEPHYR_MODEL_NUMBER
 
 config ANJAY_ZEPHYR_VERSION
 	string "Client Version"
-	default "3.7.0"
+	default "3.8.0"
 
 config ANJAY_ZEPHYR_AUTOGENERATE_ENDPOINT_NAME
 	bool "Autogenerate endpoint name"
@@ -237,7 +237,7 @@ menu "GPS on nRF9160-based devices"
 
 	config ANJAY_ZEPHYR_GPS_NRF_A_GPS
 		bool "Enable A-GPS using Nordic Location Services over LwM2M"
-		depends on ANJAY_ZEPHYR_GPS_NRF
+		depends on ANJAY_ZEPHYR_GPS_NRF && ANJAY_ZEPHYR_NRF_LC_INFO
 		select NRF_CLOUD_AGNSS
 		select NRF_CLOUD_AGPS
 		help
@@ -339,8 +339,6 @@ config ANJAY_ZEPHYR_OTA_MCUBOOT
 
 config ANJAY_ZEPHYR_PERSISTENCE
 	bool "Enable persistence"
-	select ANJAY_WITH_ACCESS_CONTROL
-	select ANJAY_WITH_MODULE_ACCESS_CONTROL
 	help
 		Enables persistence of Access Control Object, Security Object
 		and Server Object.
@@ -368,6 +366,8 @@ config ANJAY_ZEPHYR_FACTORY_PROVISIONING_INITIAL_FLASH
 	depends on ANJAY_ZEPHYR_FACTORY_PROVISIONING
 	select ANJAY_WITH_CBOR
 	select ANJAY_WITH_MODULE_FACTORY_PROVISIONING
+	select ANJAY_WITH_ACCESS_CONTROL
+	select ANJAY_WITH_MODULE_ACCESS_CONTROL
 	select FILE_SYSTEM
 	select MCUMGR
 	select MCUMGR_CMD_FS_MGMT

@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.8.0 (May 28th, 2024)
+
+### Bugfixes
+- On nRF91 platforms, initialization of Anjay is now delayed until the Connectivity Monitoring object can be properly populated
+
 ## 3.7.0 (February 16th, 2024)
 
 ### Improvements

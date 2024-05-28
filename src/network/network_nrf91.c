@@ -29,6 +29,10 @@
 #include "../gps.h"
 #include "../utils.h"
 
+#ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+#    include "../nrf_lc_info.h"
+#endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+
 #if __has_include("ncs_version.h")
 #    include "ncs_version.h"
 #endif // __has_include("ncs_version.h")
@@ -37,14 +41,46 @@ LOG_MODULE_REGISTER(anjay_zephyr_network_nrf91);
 
 static volatile atomic_int lte_nw_reg_status; // enum lte_lc_nw_reg_status
 static volatile atomic_int lte_mode;          // enum lte_lc_lte_mode
+#ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+static volatile atomic_uint_least32_t lte_cell_id;
+#endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+
+static bool is_network_connected(void) {
+    if (atomic_load(&lte_mode) == LTE_LC_LTE_MODE_NONE) {
+        return false;
+    }
+
+    int nw_reg_status = atomic_load(&lte_nw_reg_status);
+    return nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME
+           || nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING;
+}
 
 static void lte_evt_handler(const struct lte_lc_evt *const evt) {
     if (evt) {
-        if (evt->type == LTE_LC_EVT_NW_REG_STATUS) {
-            atomic_store(&lte_nw_reg_status, (int) evt->nw_reg_status);
-        } else if (evt->type == LTE_LC_EVT_LTE_MODE_UPDATE) {
-            atomic_store(&lte_mode, (int) evt->lte_mode);
+#ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+        if (evt->type == LTE_LC_EVT_NEIGHBOR_CELL_MEAS) {
+            atomic_store(&lte_cell_id, evt->cells_info.current_cell.id);
+        } else {
+            // NOTE: This may look suspicious, as we are carelessly reading
+            // atomic variables without even trying to consider that they might
+            // change in between calls. However, please note that
+            // lte_nw_reg_status and lte_mode are only ever modified from this
+            // function, so this is actually safe. Those variables are atomic
+            // to allow safely reading them from other threads, but this code
+            // does not cause a race condition.
+            bool was_connected = is_network_connected();
+#endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+            if (evt->type == LTE_LC_EVT_NW_REG_STATUS) {
+                atomic_store(&lte_nw_reg_status, (int) evt->nw_reg_status);
+            } else if (evt->type == LTE_LC_EVT_LTE_MODE_UPDATE) {
+                atomic_store(&lte_mode, (int) evt->lte_mode);
+            }
+#ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+            if (!was_connected && is_network_connected()) {
+                _anjay_zephyr_nrf_lc_info_schedule_refresh_now();
+            }
         }
+#endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
     }
     _anjay_zephyr_network_internal_connection_state_changed();
 }
@@ -81,6 +117,10 @@ int _anjay_zephyr_network_internal_platform_initialize(void) {
 
     lte_lc_register_handler(lte_evt_handler);
 
+#ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+    atomic_store(&lte_cell_id, LTE_LC_CELL_EUTRAN_ID_INVALID);
+#endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+
     return 0;
 }
 
@@ -109,18 +149,22 @@ enum anjay_zephyr_network_bearer_t _anjay_zephyr_network_current_bearer(void) {
     }
 #endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF
 
-    if (atomic_load(&lte_mode) == LTE_LC_LTE_MODE_NONE) {
+    if (!is_network_connected()) {
         return ANJAY_ZEPHYR_NETWORK_BEARER_LIMIT;
     }
 
-    int status = atomic_load(&lte_nw_reg_status);
-
-    if (status == LTE_LC_NW_REG_REGISTERED_HOME
-            || status == LTE_LC_NW_REG_REGISTERED_ROAMING) {
-        return ANJAY_ZEPHYR_NETWORK_BEARER_CELLULAR;
-    } else {
+#ifdef CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+    // When CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO is enabled, the Connectivity
+    // Monitoring object is present in the data model. That object is only
+    // filled with data if the cell ID is available. For this reason, we only
+    // treat the connection as valid and connected if the cell ID is available,
+    // to avoid populating the object with null data.
+    if (atomic_load(&lte_cell_id) == LTE_LC_CELL_EUTRAN_ID_INVALID) {
         return ANJAY_ZEPHYR_NETWORK_BEARER_LIMIT;
     }
+#endif // CONFIG_ANJAY_ZEPHYR_NRF_LC_INFO
+
+    return ANJAY_ZEPHYR_NETWORK_BEARER_CELLULAR;
 }
 
 void _anjay_zephyr_network_disconnect(void) {

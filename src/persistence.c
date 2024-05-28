@@ -18,7 +18,9 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/settings/settings.h>
 
-#include <anjay/access_control.h>
+#ifdef CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
+#    include <anjay/access_control.h>
+#endif // CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
 #ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
 #    include <anjay/attr_storage.h>
 #endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
@@ -71,7 +73,9 @@ static bool previous_attempt_failed;
 static const struct persistence_target targets[] = {
     DECL_TARGET(security_object),
     DECL_TARGET(server_object),
+#ifdef CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
     DECL_TARGET(access_control),
+#endif // CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
 #ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE
     DECL_TARGET(attr_storage),
 #endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE_ATTR_STORAGE

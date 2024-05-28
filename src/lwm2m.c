@@ -27,7 +27,9 @@
 #include <zephyr/net/sntp.h>
 #include <zephyr/posix/time.h>
 
-#include <anjay/access_control.h>
+#ifdef CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
+#    include <anjay/access_control.h>
+#endif // CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
 #include <anjay/anjay.h>
 #include <anjay/factory_provisioning.h>
 #include <anjay/security.h>
@@ -478,11 +480,11 @@ static anjay_t *initialize_anjay(void) {
 
     if (anjay_security_object_install(anjay)
             || anjay_server_object_install(anjay)
-#ifdef CONFIG_ANJAY_ZEPHYR_PERSISTENCE
+#ifdef CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
             // Access Control object is necessary if Server Object with many
             // servers is loaded
             || anjay_access_control_install(anjay)
-#endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE
+#endif // CONFIG_ANJAY_WITH_MODULE_ACCESS_CONTROL
     ) {
         LOG_ERR("Failed to install necessary modules");
         goto error;
@@ -555,6 +557,13 @@ static anjay_t *initialize_anjay(void) {
         return anjay;
     }
 #endif // CONFIG_ANJAY_ZEPHYR_PERSISTENCE
+
+#if defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE_PURGE_ON_START)
+    // Modem caching might be pretty aggresive. We clear it on startup unless
+    // Anjay security config is restored from presistence
+    (void) _anjay_zephyr_tls_session_cache_purge();
+#endif // defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS_SESSION_CACHE_PURGE_ON_START)
+
 #ifdef CONFIG_ANJAY_ZEPHYR_FACTORY_PROVISIONING
     if (!_anjay_zephyr_restore_anjay_from_factory_provisioning(anjay)) {
         return anjay;

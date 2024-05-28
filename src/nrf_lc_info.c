@@ -29,7 +29,10 @@
 
 LOG_MODULE_REGISTER(anjay_zephyr_nrf_lc_info);
 
-static struct k_work_delayable periodic_search_dwork;
+static void periodic_search_work_handler(struct k_work *work);
+
+static K_WORK_DELAYABLE_DEFINE(periodic_search_dwork,
+                               periodic_search_work_handler);
 static struct anjay_zephyr_nrf_lc_info nrf_lc_info = {
     .cells = {
         .current_cell.id = LTE_LC_CELL_EUTRAN_ID_INVALID,
@@ -134,7 +137,6 @@ int _anjay_zephyr_initialize_nrf_lc_info_listener(void) {
     }
 
     lte_lc_register_handler(lte_lc_evt_handler);
-    k_work_init_delayable(&periodic_search_dwork, periodic_search_work_handler);
 
     res = _anjay_zephyr_k_work_schedule(&periodic_search_dwork, K_NO_WAIT);
     if (res < 0) {
@@ -165,4 +167,8 @@ void _anjay_zephyr_nrf_lc_info_get(struct anjay_zephyr_nrf_lc_info *out) {
         *out = nrf_lc_info;
         out->cells.neighbor_cells = out->storage.neighbor_cells;
     }
+}
+
+int _anjay_zephyr_nrf_lc_info_schedule_refresh_now(void) {
+    return _anjay_zephyr_k_work_reschedule(&periodic_search_dwork, K_NO_WAIT);
 }

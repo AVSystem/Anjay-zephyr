@@ -40,3 +40,4 @@ int _anjay_zephyr_initialize_nrf_lc_info_listener(void);
 void _anjay_zephyr_nrf_lc_info_get(struct anjay_zephyr_nrf_lc_info *out);
 bool _anjay_zephyr_nrf_lc_info_get_if_changed(
         struct anjay_zephyr_nrf_lc_info *out);
+int _anjay_zephyr_nrf_lc_info_schedule_refresh_now(void);
