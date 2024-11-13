@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.8.1 (November 13th, 2024)
+
+### Improvements
+- Fixed compatibility with the newest versions of Zephyr (3.6.0) and nRF Connect SDK (2.7.0)
+- Added support for polling multiple sockets using es-WiFi module
+- Imply ``STREAM_FLASH_ERASE`` and ``IMG_ERASE_PROGRESSIVELY`` when using
+  ``ANJAY_ZEPHYR_FOTA``, warn user if ``IMG_ERASE_PROGRESSIVELY`` is disabled.
+
+### Bugfixes
+- Fixed faulty assertion in src/objects/ecid.c
+- Fixed Modem FOTA status reporting mechanism on nRF9160 with NCS v2.5.0 and up
+- Clear the flash area manually for FOTA image if ``IMG_ERASE_PROGRESSIVELY`` is not
+  enabled.
+
 ## 3.8.0 (May 28th, 2024)
 
 ### Bugfixes

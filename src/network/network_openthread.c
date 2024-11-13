@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-#include <stdlib.h>
+#include <stdint.h>
 
 #include <zephyr/logging/log.h>
+#include <zephyr/net/net_if.h>
+#include <zephyr/net/net_ip.h>
 #include <zephyr/net/openthread.h>
 
 #include <openthread/thread.h>
+
+#include <anjay_zephyr/bearer_list.h>
 
 #include "network.h"
 #include "network_internal.h"
@@ -34,13 +38,19 @@ int openthread_stop(struct openthread_context *ot_context);
 
 LOG_MODULE_REGISTER(anjay_zephyr_network_openthread);
 
-static void ot_state_changed(uint32_t flags, void *context) {
+static void ot_state_changed(uint32_t flags,
+                             struct openthread_context *context,
+                             void *user_data) {
     _anjay_zephyr_network_internal_connection_state_changed();
 }
 
+static struct openthread_state_changed_cb ot_state_chaged_cb = {
+    .state_changed_cb = ot_state_changed
+};
+
 int _anjay_zephyr_network_internal_platform_initialize(void) {
-    openthread_set_state_changed_cb(ot_state_changed);
-    return 0;
+    return openthread_state_changed_cb_register(
+            openthread_get_default_context(), &ot_state_chaged_cb);
 }
 
 int _anjay_zephyr_network_connect_async(void) {

@@ -36,6 +36,7 @@
 #endif     // CONFIG_NRF_MODEM_LIB
 
 #ifdef CONFIG_NET_IPV6
+#    include <zephyr/net/socket.h>
 #    include <zephyr/net/socketutils.h>
 #endif // CONFIG_NET_IPV6
 
@@ -158,8 +159,8 @@ int _anjay_zephyr_sntp_simple_ipv6(const char *server,
                                    uint32_t timeout,
                                    struct sntp_time *time) {
     int res;
-    static struct addrinfo hints;
-    struct addrinfo *addr;
+    static struct zsock_addrinfo hints;
+    struct zsock_addrinfo *addr;
     struct sntp_ctx sntp_ctx;
     uint64_t deadline;
     uint32_t iter_timeout;
@@ -208,7 +209,7 @@ int _anjay_zephyr_sntp_simple_ipv6(const char *server,
     sntp_close(&sntp_ctx);
 
 freeaddr:
-    freeaddrinfo(addr);
+    zsock_freeaddrinfo(addr);
 
     return res;
 }

@@ -22,13 +22,21 @@
 
 typedef int sockfd_t;
 
+int zsock_poll_workaround(struct zsock_pollfd *fds, int nfds, int timeout_ms);
+
 #ifndef pollfd
 #    define pollfd zsock_pollfd
 #endif // pollfd
 
-#ifndef poll
-#    define poll zsock_poll
+#ifdef poll
+#    undef poll
 #endif // poll
+
+#ifdef CONFIG_ANJAY_COMPAT_NET_LIMITED_POLL_WORKAROUND
+#    define poll zsock_poll_workaround
+#else // CONFIG_ANJAY_COMPAT_NET_LIMITED_POLL_WORKAROUND
+#    define poll zsock_poll
+#endif // CONFIG_ANJAY_COMPAT_NET_LIMITED_POLL_WORKAROUND
 
 #ifndef POLLIN
 #    define POLLIN ZSOCK_POLLIN

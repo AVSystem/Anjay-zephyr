@@ -23,8 +23,13 @@
 #include <avsystem/commons/avs_memory.h>
 #include <avsystem/commons/avs_time.h>
 
+#include <version.h>
 #include <zephyr/drivers/entropy.h>
-#include <zephyr/random/rand32.h>
+#if KERNEL_VERSION_NUMBER >= ZEPHYR_VERSION(3, 5, 0)
+#    include <zephyr/random/random.h>
+#else // KERNEL_VERSION_NUMBER >= ZEPHYR_VERSION(3, 5, 0)
+#    include <zephyr/random/rand32.h>
+#endif // KERNEL_VERSION_NUMBER >= ZEPHYR_VERSION(3, 5, 0)
 
 typedef struct anjay_mbedtls_timing_delay_context_struct {
     avs_time_monotonic_t timer;

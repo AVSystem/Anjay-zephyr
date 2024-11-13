@@ -322,16 +322,17 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
  * It also enables support for X.509 certificates in avs_net, if that module is
  * also enabled.
  */
-#if defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS)                  \
-        || defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED)     \
-        || defined(MBEDTLS_KEY_EXCHANGE_RSA_ENABLED)         \
-        || defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED)     \
-        || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED)   \
-        || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED) \
-        || defined(MBEDTLS_KEY_EXCHANGE_ECDH_RSA_ENABLED)    \
+#if defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS) || defined(MBEDTLS_USE_PSA_CRYPTO) \
+        || defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED)                       \
+        || defined(MBEDTLS_KEY_EXCHANGE_RSA_ENABLED)                           \
+        || defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED)                       \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED)                     \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED)                   \
+        || defined(MBEDTLS_KEY_EXCHANGE_ECDH_RSA_ENABLED)                      \
         || defined(MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED)
 #    define AVS_COMMONS_WITH_AVS_CRYPTO_PKI
 #endif // defined(CONFIG_ANJAY_COMPAT_ZEPHYR_TLS) ||
+       // defined(MBEDTLS_USE_PSA_CRYPTO) ||
        // defined(MBEDTLS_KEY_EXCHANGE_RSA_PSK_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_RSA_ENABLED) ||
        // defined(MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED) ||

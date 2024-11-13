@@ -24,7 +24,7 @@ config ANJAY_ZEPHYR_MODEL_NUMBER
 
 config ANJAY_ZEPHYR_VERSION
 	string "Client Version"
-	default "3.8.0"
+	default "3.8.1"
 
 config ANJAY_ZEPHYR_AUTOGENERATE_ENDPOINT_NAME
 	bool "Autogenerate endpoint name"
@@ -297,6 +297,8 @@ choice ANJAY_ZEPHYR_OTA
 		depends on BOOTLOADER_MCUBOOT
 		select IMG_MANAGER
 		select ANJAY_WITH_MODULE_FW_UPDATE
+		imply STREAM_FLASH_ERASE
+		imply IMG_ERASE_PROGRESSIVELY
 		help
 			Enables MCUboot application FOTA using Firmware Update object (/5)
 

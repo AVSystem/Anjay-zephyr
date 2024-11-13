@@ -219,8 +219,18 @@ static avs_error_t net_receive(avs_net_socket_t *sock_,
     } else if (timeout_ms < 0) {
         timeout_ms = 0;
     }
-    if (zsock_poll(&pfd, 1, (int) timeout_ms) == 0) {
-        return avs_errno(AVS_ETIMEDOUT);
+
+    int res = zsock_poll(&pfd, 1, (int) timeout_ms);
+
+    // HACK: the zsock_poll() is not fully compatible with POSIX's poll, there
+    // may be a situation when the timeout is indicated by a negative value
+    // returned AND errno set to the ETIMEDOUT.
+    if (res <= 0) {
+        if (res == 0 || (res < 0 && errno == ETIMEDOUT)) {
+            return avs_errno(AVS_ETIMEDOUT);
+        } else {
+            return avs_errno(AVS_UNKNOWN_ERROR);
+        }
     }
     ssize_t bytes_received =
             zsock_recv(sock->fd, buffer, buffer_length, ZSOCK_MSG_DONTWAIT);

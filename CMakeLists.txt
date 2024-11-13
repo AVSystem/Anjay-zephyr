@@ -148,6 +148,7 @@ if(CONFIG_ANJAY)
         compat/threading_compat.c
         )
 
+    zephyr_library_sources_ifdef(CONFIG_ANJAY_COMPAT_NET_LIMITED_POLL_WORKAROUND    compat/custom_polling.c)
     zephyr_library_sources_ifdef(CONFIG_ANJAY_COMPAT_MBEDTLS    compat/mbedtls_compat.c)
     zephyr_library_sources_ifdef(CONFIG_ANJAY_COMPAT_NET        compat/net_impl.c
                                                                 compat/net_impl.h)
@@ -175,4 +176,7 @@ if(CONFIG_ANJAY)
         target_compile_definitions(${ZEPHYR_CURRENT_LIBRARY} PRIVATE NDEBUG)
     endif()
 
+    # It seems that since Zephyr 3.6 mbedTLS is not linked implicitly
+    # to libraries, see https://github.com/zephyrproject-rtos/zephyr/issues/69375
+    zephyr_library_link_libraries_ifdef(CONFIG_MBEDTLS mbedTLS)
 endif()

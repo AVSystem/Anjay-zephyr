@@ -27,6 +27,12 @@
 #include "firmware_update.h"
 #include "utils.h"
 
+#ifndef CONFIG_IMG_ERASE_PROGRESSIVELY
+#    warning \
+            "Consider enabling CONFIG_IMG_ERASE_PROGRESSIVELY. Otherwise, whole flash area for the downloaded image must be erased in one go; this may take significant time."
+#    include <zephyr/storage/flash_map.h>
+#endif // CONFIG_IMG_ERASE_PROGRESSIVELY
+
 LOG_MODULE_REGISTER(anjay_zephyr_fw_update);
 
 #define SETTINGS_ROOT_NAME "anjay_fw_update"
@@ -51,6 +57,15 @@ static int fw_stream_open(void *user_ptr,
     if (flash_img_init(&img_ctx)) {
         return -1;
     }
+
+#ifndef CONFIG_IMG_ERASE_PROGRESSIVELY
+    // HACK: This accesses internals of flash_img_context to be able to clear
+    // the flash area.
+    if (flash_area_erase(img_ctx.flash_area, 0, img_ctx.flash_area->fa_size)) {
+        LOG_ERR("Couldn't pre-erase the flash area for image.");
+        return -1;
+    }
+#endif // CONFIG_IMG_ERASE_PROGRESSIVELY
 
     img_ctx_initialized = true;
     return 0;

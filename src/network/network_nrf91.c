@@ -95,25 +95,30 @@ int _anjay_zephyr_network_internal_platform_initialize(void) {
     ret = nrf_modem_lib_init(NORMAL_MODE);
 #    endif // NCS_VERSION_NUMBER >= 0x20400
     if (ret) {
-#    ifdef CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+#    if NCS_VERSION_NUMBER < 0x20500 \
+            && defined(CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160)
         // nrf_modem_init (called indirectly) returns a positive code in case
         // there was a modem DFU attempt (see
-        // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/2.3.0/nrfxlib/nrf_modem/doc/delta_dfu.html#checking-the-result-of-the-update),
+        // https://developer.nordicsemi.com/nRF_Connect_SDK/doc/2.4.3/nrfxlib/nrf_modem/doc/delta_dfu.html#checking-the-result-of-the-update),
         // those codes will be handled appropriately in
         // _anjay_zephyr_afu_nrf9160_modem_apply(), so immediately return a 0
         // instead
         return ret < 0 ? ret : 0;
-#    else  // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+#    else  // NCS_VERSION_NUMBER < 0x20500 &&
+           // defined(CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160)
         return ret;
-#    endif // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160
+#    endif // NCS_VERSION_NUMBER < 0x20500 &&
+           // defined(CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160)
     }
 #endif // defined(CONFIG_LTE_LINK_CONTROL) &&
        // !defined(CONFIG_NRF_MODEM_LIB_SYS_INIT)
 
+#if NCS_VERSION_NUMBER < 0x20600
     ret = lte_lc_init();
     if (ret) {
         return ret;
     }
+#endif // NCS_VERSION_NUMBER < 0x20600
 
     lte_lc_register_handler(lte_evt_handler);
 

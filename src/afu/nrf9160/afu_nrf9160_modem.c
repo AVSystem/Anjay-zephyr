@@ -55,14 +55,22 @@ LOG_MODULE_REGISTER(afu_nrf9160_modem);
 static uint8_t temp_full_modem_buf[4096];
 #endif // CONFIG_ANJAY_ZEPHYR_ADVANCED_FOTA_NRF9160_APP_DELTA_FULL_MODEM
 
-NRF_MODEM_LIB_ON_INIT(serial_lte_modem_init_hook, on_modem_lib_init, NULL);
+// Before NCS 2.5.0 the result of DFU was reported through a generic callback
+// to init method of the modem. Now there's a dedicated, separate callback
+// designated to report the result of just the DFU, not the whole modem
+// initialization.
+#if NCS_VERSION_NUMBER >= 0x20500
+NRF_MODEM_LIB_ON_DFU_RES(dfu_result_modem_init_hook, on_dfu_result, NULL);
+#else  // NCS_VERSION_NUMBER >= 0x20500
+NRF_MODEM_LIB_ON_INIT(dfu_result_modem_init_hook, on_dfu_result, NULL);
+#endif // NCS_VERSION_NUMBER >= 0x20500
 
 /* Initialized to value different than success (0) */
-static int modem_lib_init_result = -1;
+static int dfu_result = -1;
 static anjay_advanced_fw_update_result_t restored_update_result;
 
-static void on_modem_lib_init(int ret, void *ctx) {
-    modem_lib_init_result = ret;
+static void on_dfu_result(int ret, void *ctx) {
+    dfu_result = ret;
 }
 
 static int fw_stream_open(anjay_iid_t iid, void *user_ptr) {
@@ -218,7 +226,7 @@ static int fw_update_process_init_result(int err) {
 }
 
 void _anjay_zephyr_afu_nrf9160_modem_apply(void) {
-    int err = modem_lib_init_result;
+    int err = dfu_result;
 
     if (err && !fw_update_process_init_result(err)) {
         _anjay_zephyr_afu_nrf9160_reboot();

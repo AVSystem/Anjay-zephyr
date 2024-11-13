@@ -28,6 +28,7 @@ choice ANJAY_COMPAT_SECURITY
         bool "Use the Mbed TLS backend"
         select MBEDTLS
         select MBEDTLS_ENTROPY_ENABLED
+        imply MBEDTLS_ENTROPY_C
         imply MBEDTLS_DTLS
         imply MBEDTLS_KEY_EXCHANGE_PSK_ENABLED
 
@@ -90,6 +91,12 @@ endchoice
 
 config ANJAY_COMPAT_NET
     bool "Enable Net compatibility implementation"
+
+config ANJAY_COMPAT_NET_LIMITED_POLL_WORKAROUND
+    bool "Use alternative implementation of zsock_poll() method called by Anjay's event loop, that enables the use of offloaded socket implementations which offload poll() without support for more than one socket"
+    default y if WIFI_ESWIFI
+    default n
+    depends on ANJAY_COMPAT_NET
 
 config ANJAY_COMPAT_TIME
     bool "Enable Time compatibility implementation"

@@ -152,7 +152,7 @@ const anjay_dm_object_def_t **_anjay_zephyr_ecid_object_create(
     }
     obj->def = &OBJ_DEF;
 
-    assert(nrf_lc_info->cells.ncells_count < CONFIG_LTE_NEIGHBOR_CELLS_MAX);
+    assert(nrf_lc_info->cells.ncells_count <= CONFIG_LTE_NEIGHBOR_CELLS_MAX);
 
     memcpy(&obj->neighbor_cells_cached, &nrf_lc_info->cells.neighbor_cells,
            nrf_lc_info->cells.ncells_count
@@ -171,7 +171,8 @@ void _anjay_zephyr_ecid_object_update(
     }
     struct ecid_object *obj = get_obj(def);
     SYNCHRONIZED(obj->update_mutex) {
-        assert(nrf_lc_info->cells.ncells_count < CONFIG_LTE_NEIGHBOR_CELLS_MAX);
+        assert(nrf_lc_info->cells.ncells_count
+               <= CONFIG_LTE_NEIGHBOR_CELLS_MAX);
 
         // overwrite previously reported instances
         for (anjay_iid_t iid = 0;

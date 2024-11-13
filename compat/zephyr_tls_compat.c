@@ -24,7 +24,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <zephyr/random/rand32.h>
+#include <version.h>
+#if KERNEL_VERSION_NUMBER >= ZEPHYR_VERSION(3, 5, 0)
+#    include <zephyr/random/random.h>
+#else // KERNEL_VERSION_NUMBER >= ZEPHYR_VERSION(3, 5, 0)
+#    include <zephyr/random/rand32.h>
+#endif // KERNEL_VERSION_NUMBER >= ZEPHYR_VERSION(3, 5, 0)
 
 #include <avsystem/commons/avs_base64.h>
 #include <avsystem/commons/avs_crypto_psk.h>
