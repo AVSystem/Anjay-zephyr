@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2025 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,7 +173,8 @@ enum anjay_zephyr_network_bearer_t _anjay_zephyr_network_current_bearer(void) {
 }
 
 void _anjay_zephyr_network_disconnect(void) {
-    int ret = lte_lc_offline();
+    int ret =
+            lte_lc_func_mode_set(LTE_LC_FUNC_MODE_DEACTIVATE_LTE) ? -EFAULT : 0;
 
     if (ret) {
         LOG_WRN("LTE link could not be disconnected: %d", ret);

@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.9.0 (February 28th, 2025)
+
+### Features
+- Added support for nRF91x1 and generalized support for nRF9160 SOCs.
+
+### Bugfixes
+- Fixed an issue of stopping the GNSS receiver on nRF91 series when disconnecting from the network.
+
+### Improvements
+- Changing the PVT flag that is being captured for running the priority mode much faster.
+- Removed `ANJAY_ZEPHYR_GPS_NRF_EXTERNAL_ANTENNA` Kconfig option, as nCS provides `MODEM_ANTENNA_GNSS_EXTERNAL` option that automatically configures the external antenna instead if `MODEM_ANTENNA` is enabled.
+
 ## 3.8.1 (November 13th, 2024)
 
 ### Improvements

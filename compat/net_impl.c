@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2025 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,13 +65,24 @@ avs_error_t _avs_net_initialize_global_compat_state(void) {
         return avs_errno(AVS_EIO);
     }
 
+#    if defined(CONFIG_SOC_NRF9160)
     result = sscanf(buf, "mfw_nrf9160_%d.%d.%d", &major, &minor, &patch);
+#    elif defined(CONFIG_SOC_NRF9120)
+    result = sscanf(buf, "mfw_nrf91x1_%d.%d.%d", &major, &minor, &patch);
+#    else
+#        error "Unable to read modem version - SOC is not supported"
+#    endif
+
     if (result != 3) {
         avs_log(anjay, ERROR, "Failed to get modem FW version");
         return avs_errno(AVS_EIO);
     }
 
     avs_log(anjay, INFO, "Modem FW version: %d.%d.%d", major, minor, patch);
+
+    // Below check is not needed for the nRF9151 board its the earliest firmware
+    // bases on the valid version
+#    if defined(CONFIG_SOC_NRF9160)
     if (MODEM_FW_VERSION(major, minor, patch)
             < MODEM_FW_VERSION(MIN_MAJOR_MODEM_FW_VER,
                                MIN_MINOR_MODEM_FW_VER,
@@ -83,6 +94,8 @@ avs_error_t _avs_net_initialize_global_compat_state(void) {
                 MIN_PATCH_MODEM_FW_VER);
         return avs_errno(AVS_EIO);
     }
+#    endif // defined(CONFIG_SOC_NRF9160)
+
 #endif // defined(CONFIG_NRF_MODEM_LIB) && defined(CONFIG_MODEM_INFO)
     return AVS_OK;
 }

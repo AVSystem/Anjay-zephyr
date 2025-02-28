@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2024 AVSystem <avsystem@avsystem.com>
+ * Copyright 2020-2025 AVSystem <avsystem@avsystem.com>
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-#if !(defined(CONFIG_BOARD_NRF9160DK_NRF9160_NS) \
-      || defined(CONFIG_BOARD_THINGY91_NRF9160_NS))
+#if !(defined(CONFIG_SOC_NRF9160) || defined(CONFIG_SOC_NRF9120))
 #    error "This GPS implementation is not supported by selected board"
-#endif // !(defined(CONFIG_BOARD_NRF9160DK_NRF9160_NS) ||
-       // defined(CONFIG_BOARD_THINGY91_NRF9160_NS))
+#endif // !(defined(CONFIG_SOC_NRF9160) || defined(CONFIG_SOC_NRF9120))
 
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -26,6 +24,8 @@
 
 #include <nrf_modem_at.h>
 #include <nrf_modem_gnss.h>
+
+#include <modem/lte_lc.h>
 
 #include "../config.h"
 #include "../gps.h"
@@ -42,31 +42,7 @@
 
 LOG_MODULE_REGISTER(anjay_zephyr_gps_nrf);
 
-#define INTERRUPTED_FIXES_WARN_THRESHOLD 10
-
-// Suggested GPS tuning parameters come from Nordic's SDK example
-// https://github.com/nrfconnect/sdk-nrf/blob/master/samples/nrf9160/gps/src/main.c
-static const char *const init_at_commands[] = {
-// AT%XMAGPIO controls antenna tuner
-#ifdef CONFIG_BOARD_THINGY91_NRF9160_NS
-    "AT%XMAGPIO=1,1,1,7,1,746,803,2,698,748,2,1710,2200,3,824,894,4,880,960,5,"
-    "791,849,7,1565,1586",
-#endif // CONFIG_BOARD_THINGY91_NRF9160_NS
-#ifdef CONFIG_BOARD_NRF9160DK_NRF9160_NS
-    "AT%XMAGPIO=1,0,0,1,1,1574,1577",
-#endif // CONFIG_BOARD_NRF9160DK_NRF9160_NS
-
-// AT%XCOEX0 controls external Low-Noise Amplifier
-#ifdef CONFIG_ANJAY_ZEPHYR_GPS_NRF_EXTERNAL_ANTENNA
-    "AT%XCOEX0",
-#else  // CONFIG_ANJAY_ZEPHYR_GPS_NRF_EXTERNAL_ANTENNA
-    "AT%XCOEX0=1,1,1565,1586",
-#endif // CONFIG_ANJAY_ZEPHYR_GPS_NRF_EXTERNAL_ANTENNA
-
-    // https://infocenter.nordicsemi.com/topic/ref_at_commands/REF/at_commands/mob_termination_ctrl_status/cfun_set.html
-    // 31 - Activates GNSS without changing LTE.
-    "AT+CFUN=31",
-};
+#define INTERRUPTED_FIXES_WARN_THRESHOLD 100
 
 K_MUTEX_DEFINE(anjay_zephyr_gps_read_last_mtx);
 struct anjay_zephyr_gps_data anjay_zephyr_gps_read_last = {
@@ -157,10 +133,10 @@ static void incoming_pvt_work_handler(struct k_work *work) {
             anjay_zephyr_gps_read_last.radius = pvt.accuracy;
             anjay_zephyr_gps_read_last.speed = pvt.speed;
         }
-    } else if (pvt.flags & NRF_MODEM_GNSS_PVT_FLAG_NOT_ENOUGH_WINDOW_TIME) {
+    } else if (pvt.flags & NRF_MODEM_GNSS_PVT_FLAG_DEADLINE_MISSED) {
         if (k_uptime_get() > prio_mode_cooldown_end_time
                 && ++interrupted_fixes_in_row
-                               == INTERRUPTED_FIXES_WARN_THRESHOLD) {
+                               >= INTERRUPTED_FIXES_WARN_THRESHOLD) {
             interrupted_fixes_in_row = 0;
 
             if (!anjay_zephyr_config_is_gps_nrf_prio_mode_permitted()) {
@@ -288,12 +264,12 @@ static void gnss_event_handler(int event) {
 }
 
 static int config_at(void) {
-    for (size_t i = 0; i < ARRAY_SIZE(init_at_commands); i++) {
-        if (nrf_modem_at_printf("%s", init_at_commands[i])) {
-            LOG_ERR("Failed to write initial AT command: %s",
-                    init_at_commands[i]);
-            return -1;
-        }
+    int ret =
+            lte_lc_func_mode_set(LTE_LC_FUNC_MODE_ACTIVATE_GNSS) ? -EFAULT : 0;
+
+    if (ret) {
+        LOG_ERR("Failed to write initial AT command");
+        return -1;
     }
 
     return 0;
