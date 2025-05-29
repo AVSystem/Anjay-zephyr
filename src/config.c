@@ -810,12 +810,19 @@ int anjay_zephyr_config_get_psk_identity(char *buf, size_t buf_capacity) {
 int anjay_zephyr_config_get_psk(char *buf,
                                 size_t buf_capacity,
                                 size_t *psk_len) {
-    int ret = 0;
+    if (!buf || !app_config.psk.value || buf_capacity < app_config.psk.length) {
+        LOG_WRN("Getting configuration from settings failed");
+        return -1;
+    }
+
     SYNCHRONIZED(config_mutex) {
-        ret = get_config(app_config.psk.value, buf, buf_capacity);
+        // PSK is stored without NULL termination
+        // (app_config.psk.null_terminated = false), so we can't use
+        // get_config() as it bases on snprintf()
+        memcpy(buf, app_config.psk.value, app_config.psk.length);
         *psk_len = app_config.psk.length;
     }
-    return ret;
+    return 0;
 }
 
 bool anjay_zephyr_config_is_bootstrap(void) {

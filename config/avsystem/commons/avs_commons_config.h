@@ -940,6 +940,7 @@ void anjay_zephyr_mbedtls_entropy_init__(struct mbedtls_entropy_context *ctx);
  * 64-bit data types such as <c>int64_t</c> and <c>double</c>) before doing so.
  */
 /* #undef AVS_COMMONS_UTILS_WITH_ALIGNFIX_ALLOCATOR */
+
 /**@}*/
 
 #endif /* AVS_COMMONS_CONFIG_H */
