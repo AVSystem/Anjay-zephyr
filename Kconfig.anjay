@@ -348,6 +348,10 @@ config ANJAY_WITH_MODULE_FACTORY_PROVISIONING
     default n
     depends on ANJAY_WITH_CBOR
 
+config ANJAY_MAX_HOLDOFF_TIME
+    int "Maximum holdoff time in seconds."
+    default 20
+    depends on ANJAY_WITH_BOOTSTRAP
 endif
 
 endmenu

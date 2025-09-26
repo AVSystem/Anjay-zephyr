@@ -24,7 +24,7 @@ config ANJAY_ZEPHYR_MODEL_NUMBER
 
 config ANJAY_ZEPHYR_VERSION
 	string "Client Version"
-	default "3.10.0"
+	default "3.11.0"
 
 config ANJAY_ZEPHYR_AUTOGENERATE_ENDPOINT_NAME
 	bool "Autogenerate endpoint name"
